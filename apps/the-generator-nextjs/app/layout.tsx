@@ -1,12 +1,8 @@
 import './globals.css';
 import './globals-mobile.css';
 import type { Metadata, Viewport } from 'next';
-import dynamic from 'next/dynamic';
-
-// Lazy load ClientAuthProvider for code splitting
-const ClientAuthProvider = dynamic(() => import('../components/ClientAuthProvider'), {
-  ssr: true, // Keep SSR for auth
-});
+import ClientAuthProvider from '../components/ClientAuthProvider';
+import { ErrorBoundary } from '@super-son1k/shared-ui';
 
 export const metadata: Metadata = {
   title: 'Son1kvers3 - The Generator',
@@ -45,9 +41,11 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="safe-area-top safe-area-bottom">
-        <ClientAuthProvider>
-          {children}
-        </ClientAuthProvider>
+        <ErrorBoundary>
+          <ClientAuthProvider>
+            {children}
+          </ClientAuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );
