@@ -50,6 +50,7 @@ import { createGenerationWorker } from './queue/generation.worker';
 import { ENVIRONMENTS, API } from '@super-son1k/shared-utils';
 
 // Import config validation (validates env vars on startup - CRITICAL)
+// Nota: Validación flexible - no falla si faltan variables opcionales
 import { env } from './lib/config';
 
 const fastify = Fastify({

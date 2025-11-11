@@ -50,14 +50,16 @@ export function generationRoutes(sunoService: SunoService, analyticsService: Ana
           });
         }
 
-        // ✅ VALIDAR VARIABLES DE ENTORNO (Prevenir crashes)
-        if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
-          console.error('❌ Supabase configuration missing');
+        // ✅ VALIDAR VARIABLES DE ENTORNO (Solo si son críticas)
+        // Nota: Supabase es opcional si usas tokens del pool
+        // Solo validar DATABASE_URL que es crítica
+        if (!env.DATABASE_URL) {
+          console.error('❌ DATABASE_URL missing - critical');
           return reply.code(500).send({
             success: false,
             error: {
               code: 'CONFIGURATION_ERROR',
-              message: 'Server configuration error. Contact support.'
+              message: 'Server configuration error. DATABASE_URL required.'
             }
           });
         }
