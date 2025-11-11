@@ -30,22 +30,52 @@ export class ExtensionInstaller {
 
   /**
    * Auto-install extension when user accepts terms
+   * Now includes permission verification
    */
   async installOnTermsAcceptance(userId: string): Promise<ExtensionInstallResult> {
     try {
-      // Method 1: Try Chrome inline installation (if extension is in Web Store)
-      if (this.extensionId && 'chrome' in window) {
-        const result = await this.tryInlineInstall()
-        if (result.success) {
-          await this.trackInstallation(userId, 'inline')
-          return result
+      // Step 1: Verify browser support
+      if (!this.verifyBrowserSupport()) {
+        return {
+          success: false,
+          error: 'Browser no compatible. Se requiere Chrome o Edge.'
         }
       }
 
-      // Method 2: Manual installation from hosted .crx file
+      // Step 2: Try Chrome inline installation (if extension is in Web Store)
+      if (this.extensionId && 'chrome' in window) {
+        const result = await this.tryInlineInstall()
+        if (result.success) {
+          // Step 3: Verify installation and permissions
+          const verified = await this.verifyInstallation()
+          if (verified) {
+            await this.trackInstallation(userId, 'inline')
+            return result
+          } else {
+            // Installation succeeded but verification failed
+            return {
+              success: false,
+              error: 'Instalación completada pero no se pudieron verificar los permisos'
+            }
+          }
+        }
+      }
+
+      // Step 4: Manual installation from hosted .crx file
       const result = await this.installFromFile()
       if (result.success) {
-        await this.trackInstallation(userId, 'manual')
+        // Verify after manual installation
+        const verified = await this.verifyInstallationWithDelay()
+        if (verified) {
+          await this.trackInstallation(userId, 'manual')
+        } else {
+          // Still track but warn user
+          await this.trackInstallation(userId, 'manual')
+          return {
+            ...result,
+            error: 'Instalación iniciada. Por favor verifica los permisos manualmente.'
+          }
+        }
       }
       
       return result
@@ -57,6 +87,61 @@ export class ExtensionInstaller {
         error: error instanceof Error ? error.message : 'Unknown error'
       }
     }
+  }
+
+  /**
+   * Verify browser support for extensions
+   */
+  private verifyBrowserSupport(): boolean {
+    return typeof window !== 'undefined' && 
+           ('chrome' in window || 'browser' in window)
+  }
+
+  /**
+   * Verify extension is installed and has required permissions
+   */
+  private async verifyInstallation(): Promise<boolean> {
+    try {
+      // Check if extension is installed
+      const installed = await this.checkIfInstalled()
+      if (!installed) {
+        return false
+      }
+
+      // Try to communicate with extension to verify permissions
+      return await new Promise<boolean>((resolve) => {
+        if (!('chrome' in window) || !('runtime' in (window as any).chrome)) {
+          resolve(false)
+          return
+        }
+
+        (window as any).chrome.runtime.sendMessage(
+          this.extensionId,
+          { type: 'VERIFY_PERMISSIONS' },
+          (response: any) => {
+            if ((window as any).chrome.runtime.lastError) {
+              resolve(false)
+            } else {
+              resolve(response?.success === true)
+            }
+          }
+        )
+
+        // Timeout after 3 seconds
+        setTimeout(() => resolve(false), 3000)
+      })
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Verify installation with delay (for manual installations)
+   */
+  private async verifyInstallationWithDelay(): Promise<boolean> {
+    // Wait a bit for extension to initialize
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    return await this.verifyInstallation()
   }
 
   /**

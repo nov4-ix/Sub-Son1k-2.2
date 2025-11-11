@@ -158,7 +158,7 @@ class PopupManager {
           <div class="empty-state-icon">🎵</div>
           <div>No tokens captured yet</div>
           <div style="font-size: 11px; margin-top: 4px;">
-            Visit Suno.com to start capturing tokens
+            Visita el sitio del motor de generación IA para comenzar
           </div>
         </div>
       `

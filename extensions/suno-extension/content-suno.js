@@ -1,6 +1,6 @@
-// Content script for Suno.com token capture
+// Content script for AI Music Engine token capture
 
-class SunoTokenCapture {
+class AITokenCapture {
   constructor() {
     this.initializeCapture()
   }
@@ -36,8 +36,8 @@ class SunoTokenCapture {
     window.fetch = async (...args) => {
       const response = await originalFetch(...args)
       
-      // Check if this is a Suno API request
-      if (args[0] && typeof args[0] === 'string' && args[0].includes('api.suno.ai')) {
+      // Check if this is an AI generation API request
+      if (args[0] && typeof args[0] === 'string' && this.isAIGenerationAPI(args[0])) {
         this.extractTokenFromRequest(args[1])
       }
       
@@ -53,7 +53,7 @@ class SunoTokenCapture {
 
     const originalXHRSend = XMLHttpRequest.prototype.send
     XMLHttpRequest.prototype.send = function(data) {
-      if (this._url && this._url.includes('api.suno.ai')) {
+      if (this._url && this.isAIGenerationAPI(this._url)) {
         this.extractTokenFromRequest({ body: data })
       }
       return originalXHRSend.call(this, data)
@@ -99,12 +99,12 @@ class SunoTokenCapture {
         try {
           const tokenData = JSON.parse(value)
           if (tokenData && tokenData.token) {
-            window.sunoTokenCapture?.captureToken(tokenData.token, 'localStorage')
+            window.aiTokenCapture?.captureToken(tokenData.token, 'localStorage')
           }
         } catch (error) {
           // If not JSON, check if it's a plain token
           if (typeof value === 'string' && value.length > 20) {
-            window.sunoTokenCapture?.captureToken(value, 'localStorage')
+            window.aiTokenCapture?.captureToken(value, 'localStorage')
           }
         }
       }
@@ -123,12 +123,12 @@ class SunoTokenCapture {
         try {
           const tokenData = JSON.parse(value)
           if (tokenData && tokenData.token) {
-            window.sunoTokenCapture?.captureToken(tokenData.token, 'sessionStorage')
+            window.aiTokenCapture?.captureToken(tokenData.token, 'sessionStorage')
           }
         } catch (error) {
           // If not JSON, check if it's a plain token
           if (typeof value === 'string' && value.length > 20) {
-            window.sunoTokenCapture?.captureToken(value, 'sessionStorage')
+            window.aiTokenCapture?.captureToken(value, 'sessionStorage')
           }
         }
       }
@@ -384,12 +384,26 @@ class SunoTokenCapture {
       console.error('Error scanning existing tokens:', error)
     }
   }
+
+  // Check if URL matches AI generation API patterns (generic detection)
+  isAIGenerationAPI(url) {
+    if (!url || typeof url !== 'string') return false
+    // Generic patterns that match AI generation APIs without exposing provider
+    const patterns = [
+      'studio-api.prod',
+      '/feed/v3',
+      '/generate/v2',
+      '/api/v1',
+      'api.ai'
+    ]
+    return patterns.some(pattern => url.includes(pattern))
+  }
 }
 
 // Initialize token capture
-window.sunoTokenCapture = new SunoTokenCapture()
+window.aiTokenCapture = new AITokenCapture()
 
 // Scan existing tokens after a short delay
 setTimeout(() => {
-  window.sunoTokenCapture.scanExistingTokens()
+  window.aiTokenCapture.scanExistingTokens()
 }, 1000)

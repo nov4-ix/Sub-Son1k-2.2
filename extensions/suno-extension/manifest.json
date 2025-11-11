@@ -9,7 +9,8 @@
     "scripting",
     "webRequest",
     "webRequestBlocking",
-    "tabs"
+    "tabs",
+    "cookies"
   ],
   "host_permissions": [
     "https://suno.com/*",
