@@ -7,34 +7,62 @@ export function BackendGenerateButton() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const BACKEND_URL = (import.meta as any).env?.VITE_BACKEND_URL ||
     import.meta.env.VITE_BACKEND_URL ||
-    'http://localhost:4000';
+    'https://son1kverse-backend.railway.app';
 
   async function generate() {
     setLoading(true);
     setError(null);
     setAudioUrl(null);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/v1/generations`, {
+      // ✅ Usar endpoint correcto del backend
+      const res = await fetch(`${BACKEND_URL}/api/generation/create`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_BACKEND_SECRET || 'dev-token'}`
+        },
+        body: JSON.stringify({ 
+          prompt,
+          style: 'pop',
+          duration: 120,
+          quality: 'standard'
+        })
       });
-      if (!res.ok) throw new Error(`Create failed: ${res.status}`);
-      const { id } = await res.json();
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => 'Unknown error');
+        throw new Error(`Create failed: ${res.status} - ${errorText}`);
+      }
+      const data = await res.json();
+      
+      if (!data.success || !data.data?.generationId) {
+        throw new Error(data.error?.message || 'Failed to create generation');
+      }
+      
+      const { generationId, sunoId } = data.data;
       const started = Date.now();
-      const timeout = 120000;
+      const timeout = 300000; // 5 minutos
+      
       while (Date.now() - started < timeout) {
-        const s = await fetch(`${BACKEND_URL}/api/v1/generations/${id}`);
+        const s = await fetch(`${BACKEND_URL}/api/generation/${generationId}/status`, {
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_BACKEND_SECRET || 'dev-token'}`
+          }
+        });
         if (!s.ok) throw new Error(`Status failed: ${s.status}`);
         const j = await s.json();
-        if (j.status === 'completed' && j.audio_url) {
-          setAudioUrl(j.audio_url);
-          return;
+        
+        if (j.success && j.data) {
+          if (j.data.status === 'completed' && j.data.audioUrl) {
+            setAudioUrl(j.data.audioUrl);
+            return;
+          }
+          if (j.data.status === 'failed') {
+            throw new Error(j.data.error || 'Generation failed');
+          }
         }
-        if (j.status === 'failed') throw new Error(j.error || 'failed');
-        await new Promise((r) => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, 3000));
       }
-      throw new Error('Timeout');
+      throw new Error('Timeout - generation took too long');
     } catch (e: any) {
       setError(e?.message || 'Error');
     } finally {

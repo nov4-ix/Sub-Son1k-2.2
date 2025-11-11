@@ -36,8 +36,11 @@ export function AudioUploader({ onFileSelect }: Props) {
       duration: 0, // Will be set after loading
       format: file.type.includes('mp3') ? 'mp3' : 'wav',
       size: file.size,
-      sampleRate: 44100, // Default, will be updated after analysis
-      channels: 2 // Default, will be updated after analysis
+      metadata: {
+        duration: 0,
+        sampleRate: 44100,
+        channels: 2
+      }
     };
 
     // Load audio to get duration

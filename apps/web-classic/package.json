@@ -11,6 +11,10 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "react-hook-form": "^7.65.0",
+    "@hookform/resolvers": "^5.2.2",
+    "zod": "^4.1.12",
+    "@stripe/stripe-js": "^2.4.0",
     "@super-son1k/shared-ui": "file:../../packages/shared-ui",
     "@super-son1k/shared-utils": "file:../../packages/shared-utils",
     "@supabase/supabase-js": "^2.75.0",

@@ -146,7 +146,8 @@ export async function POST(req: NextRequest) {
     console.log('📡 Llamando al nuevo backend Super-Son1k-2.0...')
 
     // ✅ CONECTAR AL NUEVO BACKEND Super-Son1k-2.0
-    const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+    const BACKEND_FALLBACK = 'https://backend-jo27sb8hr-son1kvers3s-projects-c3cdfb54.vercel.app'
+    const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || BACKEND_FALLBACK
     let response = await fetch(`${BACKEND_URL}/api/generation/create`, {
       method: 'POST',
       headers: {
@@ -203,9 +204,9 @@ export async function POST(req: NextRequest) {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     
     return NextResponse.json({ 
-      trackId: generationId, // Compatibilidad con el frontend
-      generationId: generationId,
-      sunoId: sunoId,
+      trackId: sunoId || generationId, // sunoId para polling directo si backend falla
+      generationId: generationId, // generationId para usar backend
+      sunoId: sunoId, // ID de Suno para fallback
       status: status === 'pending' ? 'processing' : status,
       message: 'Generación iniciada exitosamente'
     })

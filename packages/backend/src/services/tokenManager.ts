@@ -234,31 +234,36 @@ export class TokenManager extends EventEmitter {
    */
   async validateTokenWithSuno(token: string): Promise<boolean> {
     try {
-      const axiosInstance = this.createAxiosInstance(token);
-      const response = await axiosInstance.get('https://api.suno.ai/v1/me', {
-        timeout: 10000
+      // Validar token haciendo una petición de prueba a ai.imgkits.com
+      const response = await axios.post('https://ai.imgkits.com/suno/generate', {
+        prompt: 'test',
+        lyrics: '',
+        title: '',
+        style: 'pop',
+        customMode: false,
+        instrumental: true
+      }, {
+        timeout: 10000,
+        headers: {
+          'authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'channel': 'node-api',
+          'origin': 'https://www.livepolls.app',
+          'referer': 'https://www.livepolls.app/'
+        },
+        validateStatus: (status) => status < 500 // Aceptar todo excepto errores de servidor
       });
 
-      return response.status === 200;
-    } catch (error) {
+      // Token válido si no es 401 (Unauthorized)
+      return response.status !== 401;
+    } catch (error: any) {
+      // Si es error 401, el token es inválido
+      if (error.response?.status === 401) {
+        return false;
+      }
       console.error('Token validation failed:', error);
       return false;
     }
-  }
-
-  /**
-   * Create axios instance for token
-   */
-  private createAxiosInstance(token: string): AxiosInstance {
-    return axios.create({
-      baseURL: 'https://api.suno.ai/v1',
-      timeout: 30000,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'Super-Son1k-2.0/2.0'
-      }
-    });
   }
 
   /**

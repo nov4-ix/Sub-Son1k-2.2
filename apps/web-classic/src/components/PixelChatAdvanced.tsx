@@ -37,12 +37,23 @@ export function PixelChatAdvanced({ currentApp = 'web-classic', isOpen, onClose 
 
   const checkConnection = async () => {
     try {
-      // Check if Ollama is available by testing the connection
+      // ✅ Verificar si Groq API está configurada
+      const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || ''
+      if (GROQ_API_KEY) {
+        setIsConnected(true)
+        return
+      }
+      
+      // Fallback: Intentar Ollama local (solo para desarrollo)
+      if (import.meta.env.DEV) {
       const response = await fetch('http://localhost:11434/api/tags', {
         method: 'GET',
-        signal: AbortSignal.timeout(5000)
+          signal: AbortSignal.timeout(2000)
       })
       setIsConnected(response.ok)
+      } else {
+        setIsConnected(false)
+      }
     } catch {
       setIsConnected(false)
     }
@@ -230,7 +241,7 @@ export function PixelChatAdvanced({ currentApp = 'web-classic', isOpen, onClose 
             </div>
             {!isConnected && (
               <p className="text-xs text-red-400 mt-2">
-                Ollama no está conectado. Inicia Ollama localmente.
+                Pixel AI no está configurado. Configura VITE_GROQ_API_KEY en producción.
               </p>
             )}
           </div>

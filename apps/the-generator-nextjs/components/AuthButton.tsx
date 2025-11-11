@@ -23,14 +23,14 @@ export default function AuthButton() {
 
   if (session) {
     return (
-      <Button variant="outline" onClick={handleSignOut}>
+      <Button variant="secondary" onClick={handleSignOut}>
         Cerrar sesión
       </Button>
     );
   }
 
   return (
-    <Button variant="default" onClick={handleSignIn}>
+    <Button variant="primary" onClick={handleSignIn}>
       Iniciar sesión
     </Button>
   );

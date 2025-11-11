@@ -115,9 +115,11 @@ export function AnalyzerPanel() {
                 <span className="text-sm text-accent">BPM</span>
               </div>
               <div className="text-2xl font-bold text-cyan">{result.bpm}</div>
+              {result.confidence && (
               <div className="text-xs text-accent">
                 Confidence: {Math.round(result.confidence * 100)}%
               </div>
+              )}
             </div>
             
             <div className="p-4 bg-ghost/50 rounded-lg">
@@ -128,9 +130,11 @@ export function AnalyzerPanel() {
               <div className="text-2xl font-bold text-magenta">
                 {Math.round(result.energy * 100)}%
               </div>
+              {result.density && (
               <div className="text-xs text-accent">
                 Density: {Math.round(result.density * 100)}%
               </div>
+              )}
             </div>
           </div>
           
@@ -141,7 +145,7 @@ export function AnalyzerPanel() {
               Style Tags
             </h3>
             <div className="flex flex-wrap gap-2">
-              {result.styleTags.map((tag, index) => (
+              {result.styleTags?.map((tag: string, index: number) => (
                 <span
                   key={index}
                   className="px-3 py-1 bg-cyan/10 border border-cyan/20 rounded-full text-cyan text-sm"
@@ -164,7 +168,7 @@ export function AnalyzerPanel() {
               Probable Instruments
             </h3>
             <div className="flex flex-wrap gap-2">
-              {result.probableInstruments.map((instrument, index) => (
+              {result.probableInstruments?.map((instrument: string, index: number) => (
                 <span
                   key={index}
                   className="px-3 py-1 bg-magenta/10 border border-magenta/20 rounded-full text-magenta text-sm"
@@ -191,18 +195,22 @@ export function AnalyzerPanel() {
                 <span className="text-accent">BPM:</span>
                 <span className="text-cyan ml-2">{result.bpm}</span>
               </div>
+              {result.confidence && (
               <div>
                 <span className="text-accent">Confidence:</span>
                 <span className="text-cyan ml-2">{Math.round(result.confidence * 100)}%</span>
               </div>
+              )}
               <div>
                 <span className="text-accent">Energy:</span>
                 <span className="text-magenta ml-2">{Math.round(result.energy * 100)}%</span>
               </div>
+              {result.density && (
               <div>
                 <span className="text-accent">Density:</span>
                 <span className="text-magenta ml-2">{Math.round(result.density * 100)}%</span>
               </div>
+              )}
             </div>
           </div>
         </div>

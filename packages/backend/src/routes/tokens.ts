@@ -10,10 +10,82 @@ import { authMiddleware, adminMiddleware } from '../middleware/auth';
 
 export function tokenRoutes(tokenManager: TokenManager, tokenPoolService: TokenPoolService) {
   return async function(fastify: FastifyInstance) {
-    // Get token pool status
-    fastify.get('/pool/status', {
-      preHandler: [authMiddleware]
-    }, async (request, reply) => {
+    // PUBLIC: Add token to pool (for extension integration) - MUST BE FIRST
+    fastify.post('/add-public', async (request, reply) => {
+      const { token, label, email, source = 'extension' } = request.body as any;
+
+      try {
+        if (!token) {
+          return reply.code(400).send({
+            success: false,
+            error: {
+              code: 'TOKEN_REQUIRED',
+              message: 'Token is required'
+            }
+          });
+        }
+
+        // Validate token with Suno API first
+        const isValid = await tokenManager.validateTokenWithSuno(token);
+        if (!isValid) {
+          return reply.code(400).send({
+            success: false,
+            error: {
+              code: 'INVALID_TOKEN',
+              message: 'Token validation failed with Suno API'
+            }
+          });
+        }
+
+        // Add token without userId (system token for pool)
+        const tokenId = await tokenManager.addToken(
+          token,
+          undefined, // No userId for extension tokens
+          email || `extension-${source}`,
+          'FREE', // Default tier for extension tokens
+          {
+            source,
+            label: label || 'extension-auto',
+            addedVia: 'extension',
+            timestamp: new Date().toISOString()
+          }
+        );
+
+        return {
+          success: true,
+          data: {
+            tokenId,
+            message: 'Token added successfully to backend pool',
+            isValid
+          }
+        };
+
+      } catch (error: any) {
+        console.error('Add public token error:', error);
+        
+        // If token already exists, that's OK
+        if (error.message?.includes('already exists') || error.message?.includes('Token already exists')) {
+          return {
+            success: true,
+            data: {
+              message: 'Token already exists in pool',
+              duplicate: true
+            }
+          };
+        }
+
+        return reply.code(400).send({
+          success: false,
+          error: {
+            code: 'TOKEN_ADD_FAILED',
+            message: error.message || 'Failed to add token'
+          }
+        });
+      }
+    });
+
+    // Get token pool status (PUBLIC for metrics)
+    fastify.get('/pool/status', async (request, reply) => {
       try {
         const stats = await tokenManager.getPoolStats();
 
@@ -74,7 +146,7 @@ export function tokenRoutes(tokenManager: TokenManager, tokenPoolService: TokenP
       }
     });
 
-    // Add token to pool
+    // PROTECTED: Add token to pool (for authenticated users)
     fastify.post('/add', {
       preHandler: [authMiddleware]
     }, async (request, reply) => {

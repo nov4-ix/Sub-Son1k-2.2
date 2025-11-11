@@ -92,11 +92,8 @@ export function TheGeneratorPage() {
     return unsubscribe
   }, [setValue])
 
-  // URLs de prueba para el reproductor (adaptar después a API real)
-  const [demoUrls, setDemoUrls] = useState<string[]>([
-    'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
-    'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav'
-  ])
+  // URLs de tracks generados (se llenan con URLs reales del backend)
+  const [demoUrls] = useState<string[]>([]) // Mantener por compatibilidad pero ya no se usan
 
   const tracks = [
     {
@@ -176,32 +173,161 @@ export function TheGeneratorPage() {
     setGenerationMessage('🚀 Iniciando generación...')
 
     try {
-      // Simular proceso de generación (reemplazar con API real después)
-      for (let i = 0; i <= 100; i += 10) {
-        setGenerationProgress(i)
-        if (i < 30) setGenerationMessage('🎼 Analizando estructura musical...')
-        else if (i < 60) setGenerationMessage('🎹 Creando instrumentación...')
-        else if (i < 100) setGenerationMessage('🎤 Generando vocales...')
-        else setGenerationMessage('🎉 ¡Música generada!')
-        await new Promise(resolve => setTimeout(resolve, 200))
+      // ✅ CONECTAR AL BACKEND PROPIO (igual que The Generator Next.js)
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://son1kverse-backend.railway.app'
+      const BACKEND_SECRET = import.meta.env.VITE_BACKEND_SECRET || 'dev-token'
+
+      // Preparar prompt completo (igual que Next.js)
+      const finalPrompt = instrumental 
+        ? `[${musicPrompt}]` 
+        : `[${musicPrompt}]\n\n${generatedLyrics?.trim() || ""}`
+
+      setGenerationMessage('📡 Conectando con backend...')
+      setGenerationProgress(10)
+
+      // Llamar al backend
+      const response = await fetch(`${BACKEND_URL}/api/generation/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${BACKEND_SECRET}`
+        },
+        body: JSON.stringify({
+          prompt: finalPrompt,
+          style: musicPrompt || 'pop',
+          duration: 120,
+          quality: 'standard',
+          custom_mode: !instrumental && generatedLyrics?.trim().length > 0,
+          tags: []
+        })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error')
+        throw new Error(`Backend error ${response.status}: ${errorText}`)
       }
 
-      // URL de demo (reemplazar con URLs reales después)
-      setTrackUrls(demoUrls)
-      if (demoUrls.length > 0) {
-        setCurrentTrack('track1')
+      const data = await response.json()
+      const generationId = data.data?.generationId || data.generationId
+      const sunoId = data.data?.sunoId || data.sunoId
+
+      if (!generationId) {
+        throw new Error('No se recibió generationId del backend')
       }
 
-      toast.success('¡Música generada exitosamente!')
-      setTimeout(() => {
-        setIsGeneratingMusic(false)
-        setGenerationMessage('')
-      }, 3000)
+      setGenerationProgress(30)
+      setGenerationMessage('⏳ Generación iniciada, esperando resultados...')
+
+      // ✅ POLLING del estado (igual que Next.js)
+      pollTrackStatus(sunoId || generationId, generationId)
+
     } catch (err: any) {
+      console.error('❌ Error generando música:', err)
       setError(err.message || 'Error generando música')
       setTimeout(() => setError(''), 5000)
       setIsGeneratingMusic(false)
+      setGenerationProgress(0)
+      setGenerationMessage('')
     }
+  }
+
+  // ✅ Función de polling (igual que Next.js)
+  const pollTrackStatus = async (trackId: string, generationId?: string) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://son1kverse-backend.railway.app'
+    const BACKEND_SECRET = import.meta.env.VITE_BACKEND_SECRET || 'dev-token'
+    
+    const maxAttempts = 60 // 5 minutos máximo (5s * 60)
+    let attempts = 0
+
+    const poll = async () => {
+      if (attempts >= maxAttempts) {
+        setError('Tiempo de espera agotado')
+        setIsGeneratingMusic(false)
+        return
+      }
+
+      attempts++
+      setGenerationProgress(30 + Math.min(attempts * 2, 60))
+      setGenerationMessage(`🔄 Verificando estado... (${attempts}/${maxAttempts})`)
+
+      try {
+        // Priorizar backend si tenemos generationId
+        let response
+        if (generationId) {
+          response = await fetch(`${BACKEND_URL}/api/generation/${generationId}/status`, {
+            headers: {
+              'Authorization': `Bearer ${BACKEND_SECRET}`
+            }
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            if (data.success && data.data) {
+              const gen = data.data
+              
+              if (gen.status === 'completed' && gen.audioUrl) {
+                // ✅ Música lista
+                setTrackUrls([gen.audioUrl])
+                setCurrentTrack('track1')
+                setGenerationProgress(100)
+                setGenerationMessage('🎉 ¡Música generada exitosamente!')
+                toast.success('¡Música generada exitosamente!')
+                setIsGeneratingMusic(false)
+                return
+              } else if (gen.status === 'failed') {
+                throw new Error(gen.error || 'Generación falló')
+              } else {
+                // Sigue procesando
+                setTimeout(poll, 5000)
+                return
+              }
+            }
+          }
+        }
+
+        // Fallback: consultar directamente a Suno si backend falla
+        if (trackId) {
+          response = await fetch(`https://usa.imgkits.com/node-api/suno/get_mj_status/${trackId}`, {
+            headers: {
+              'authorization': 'Bearer placeholder', // No crítico para status
+              'channel': 'node-api',
+              'origin': 'https://www.livepolls.app',
+              'referer': 'https://www.livepolls.app/'
+            }
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            
+            if (data.running === false && data.audio_url) {
+              // ✅ Música lista
+              setTrackUrls([data.audio_url])
+              setCurrentTrack('track1')
+              setGenerationProgress(100)
+              setGenerationMessage('🎉 ¡Música generada exitosamente!')
+              toast.success('¡Música generada exitosamente!')
+              setIsGeneratingMusic(false)
+              return
+            } else if (data.running === true) {
+              // Sigue procesando
+              setTimeout(poll, 5000)
+              return
+            }
+          }
+        }
+
+        // Continuar polling
+        setTimeout(poll, 5000)
+
+      } catch (error: any) {
+        console.error('Error en polling:', error)
+        setError(error.message || 'Error consultando estado')
+        setIsGeneratingMusic(false)
+      }
+    }
+
+    // Iniciar polling
+    setTimeout(poll, 3000) // Esperar 3s antes del primer check
   }
 
   // Control de audio

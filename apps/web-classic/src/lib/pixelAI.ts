@@ -200,45 +200,53 @@ Contexto: Estás integrado en Super-Son1k, una plataforma de creación musical c
 
   private async callAI(): Promise<string> {
     try {
-      // Check if Ollama is available
-      const ollamaAvailable = await this.checkOllamaConnection()
+      // ✅ Usar Groq API para producción (ya tienes la API key)
+      const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || ''
 
-      if (!ollamaAvailable) {
+      if (!GROQ_API_KEY) {
+        console.warn('VITE_GROQ_API_KEY no configurada, usando fallback')
         return this.getFallbackResponse()
       }
 
-      // Prepare messages for API
+      // Prepare messages for API (formato OpenAI compatible)
       const messages = [
         { role: 'system', content: this.config.systemPrompt },
         ...this.conversationHistory.slice(-10).map(msg => ({
-          role: msg.role,
+          role: msg.role === 'assistant' ? 'assistant' : 'user',
           content: msg.content
         }))
       ]
 
-      // Call Ollama API
-      const response = await fetch('http://localhost:11434/api/chat', {
+      // ✅ Call Groq API (compatible con OpenAI format)
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${GROQ_API_KEY}`
         },
         body: JSON.stringify({
-          model: this.config.model,
+          model: 'llama-3.1-70b-versatile', // Modelo rápido y potente
           messages,
-          stream: false,
-          options: {
             temperature: this.config.temperature,
-            num_predict: this.config.maxTokens
-          }
+          max_tokens: this.config.maxTokens,
+          stream: false
         })
       })
 
       if (!response.ok) {
-        throw new Error(`Ollama API error: ${response.status}`)
+        const errorText = await response.text().catch(() => 'Unknown error')
+        console.error('Groq API error:', response.status, errorText)
+        throw new Error(`Groq API error: ${response.status}`)
       }
 
       const data = await response.json()
-      return data.message?.content || 'Lo siento, no pude generar una respuesta.'
+      const content = data.choices?.[0]?.message?.content || ''
+      
+      if (!content) {
+        throw new Error('No response content from Groq')
+      }
+
+      return content
 
     } catch (error) {
       console.error('AI call failed:', error)
@@ -247,15 +255,10 @@ Contexto: Estás integrado en Super-Son1k, una plataforma de creación musical c
   }
 
   private async checkOllamaConnection(): Promise<boolean> {
-    try {
-      const response = await fetch('http://localhost:11434/api/tags', {
-        method: 'GET',
-        signal: AbortSignal.timeout(5000)
-      })
-      return response.ok
-    } catch {
-      return false
-    }
+    // ✅ Ya no necesitamos Ollama, pero mantenemos por compatibilidad
+    // En producción siempre usamos Groq
+    const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || ''
+    return !!GROQ_API_KEY
   }
 
   private getFallbackResponse(): string {

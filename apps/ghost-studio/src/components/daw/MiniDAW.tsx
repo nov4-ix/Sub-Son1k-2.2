@@ -61,8 +61,11 @@ export function MiniDAW({ onRecordingComplete }: Props) {
           duration: 0, // Will be set after loading
           format: 'wav',
           size: blob.size,
+          metadata: {
+            duration: 0,
           sampleRate: 44100,
           channels: 1
+          }
         };
 
         // Load audio to get duration
@@ -180,8 +183,11 @@ export function MiniDAW({ onRecordingComplete }: Props) {
       duration: firstLoop.duration,
       format: 'wav',
       size: firstLoop.blob.size,
+      metadata: {
+        duration: firstLoop.duration,
       sampleRate: 44100,
       channels: 1
+      }
     };
     
     onRecordingComplete(audioFile);

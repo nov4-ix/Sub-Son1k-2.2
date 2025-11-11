@@ -69,24 +69,24 @@ export const TwoTrackPlayer: React.FC<TwoTrackPlayerProps> = ({
     onSelect: (trackId: string) => void;
     formatTime: (seconds: number) => string;
   }>(({ track, isSelected, onSelect, formatTime }) => (
-    <div
+          <div
       onClick={() => onSelect(track.id)}
-      className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+            className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
         isSelected
-          ? 'bg-gradient-to-br from-purple-600 to-pink-600 border-purple-400 text-white'
-          : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
-      }`}
-    >
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
-          <Play className="w-4 h-4 text-white" />
-        </div>
-        <div>
-          <h4 className="text-lg font-semibold">{track.name}</h4>
-          <p className="text-sm opacity-75">{formatTime(track.duration)}</p>
-        </div>
-      </div>
-    </div>
+                ? 'bg-gradient-to-br from-purple-600 to-pink-600 border-purple-400 text-white'
+                : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
+                <Play className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h4 className="text-lg font-semibold">{track.name}</h4>
+                <p className="text-sm opacity-75">{formatTime(track.duration)}</p>
+              </div>
+            </div>
+          </div>
   ), (prevProps, nextProps) => {
     // Only re-render if track data or selection state changes
     return (

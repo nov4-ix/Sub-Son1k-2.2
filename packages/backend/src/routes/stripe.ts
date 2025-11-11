@@ -3,12 +3,44 @@ import Stripe from 'stripe'
 import { SupabaseAuthService } from '../services/supabaseAuth'
 import { supabaseAuthMiddleware } from '../middleware/supabaseAuth'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+// ✅ Inicializar Stripe solo si está configurado
+let stripe: Stripe | null = null
+try {
+  if (process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2023-08-16'
 })
+  }
+} catch (error) {
+  console.warn('Stripe no configurado. Los pagos no estarán disponibles.')
+}
 
 export async function stripeRoutes(fastify: FastifyInstance) {
   const supabaseAuth = new SupabaseAuthService(fastify.prisma)
+
+  // ✅ Verificar si Stripe está configurado
+  if (!stripe) {
+    fastify.get('/plans', async (request, reply) => {
+      return {
+        success: true,
+        data: [
+          {
+            id: 'free',
+            name: 'FREE',
+            price: 0,
+            monthlyGenerations: 5,
+            dailyGenerations: 2,
+            maxDuration: 60,
+            quality: 'standard',
+            features: ['basic_generation', 'community_access'],
+            stripePriceId: null
+          }
+        ],
+        message: 'Stripe no configurado. Solo plan FREE disponible.'
+      }
+    })
+    return // No registrar otras rutas si Stripe no está configurado
+  }
 
   // Get available plans
   fastify.get('/plans', async (request, reply) => {
@@ -94,6 +126,16 @@ export async function stripeRoutes(fastify: FastifyInstance) {
       // Create or get Stripe customer
       let customerId = user.stripeCustomerId
 
+      if (!stripe) {
+        return reply.code(503).send({
+          success: false,
+          error: {
+            code: 'STRIPE_NOT_CONFIGURED',
+            message: 'Stripe payment system not configured'
+          }
+        })
+      }
+
       if (!customerId) {
         const customer = await stripe.customers.create({
           email: user.email,
@@ -171,6 +213,16 @@ export async function stripeRoutes(fastify: FastifyInstance) {
         })
       }
 
+      if (!stripe) {
+        return reply.code(503).send({
+          success: false,
+          error: {
+            code: 'STRIPE_NOT_CONFIGURED',
+            message: 'Stripe payment system not configured'
+          }
+        })
+      }
+
       const session = await stripe.billingPortal.sessions.create({
         customer: userTier.stripeCustomerId,
         return_url: returnUrl || `${process.env.FRONTEND_URL}/dashboard`
@@ -197,7 +249,27 @@ export async function stripeRoutes(fastify: FastifyInstance) {
   // Webhook for Stripe events
   fastify.post('/webhook', async (request, reply) => {
     const sig = request.headers['stripe-signature'] as string
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+    if (!stripe) {
+      return reply.code(503).send({
+        success: false,
+        error: {
+          code: 'STRIPE_NOT_CONFIGURED',
+          message: 'Stripe webhooks not configured'
+        }
+      })
+    }
+
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+
+    if (!webhookSecret) {
+      return reply.code(503).send({
+        success: false,
+        error: {
+          code: 'WEBHOOK_SECRET_MISSING',
+          message: 'Stripe webhook secret not configured'
+        }
+      })
+    }
 
     let event: Stripe.Event
 
@@ -256,6 +328,11 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 
   // Helper functions for webhook handling
   async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+    if (!stripe) {
+      console.warn('Stripe not configured, cannot handle checkout')
+      return
+    }
+
     const userId = session.metadata?.userId
     const planId = session.metadata?.planId
 

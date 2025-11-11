@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "apps/web-classic/package.json",
-      "use": "@vercel/next"
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     },
     {
       "src": "apps/the-generator-nextjs/package.json",

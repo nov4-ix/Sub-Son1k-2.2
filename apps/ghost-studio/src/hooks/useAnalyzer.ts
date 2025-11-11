@@ -159,13 +159,19 @@ export function useAnalyzer(): UseAnalyzerReturn {
       
       // Combine results
       const finalResult: AnalysisResult = {
-        bpm: analysisResult.bpm,
-        confidence: analysisResult.confidence,
-        styleTags: genreResult.styleTags,
-        probableInstruments: genreResult.probableInstruments,
-        energy: analysisResult.featuresSummary.energy,
-        density: analysisResult.featuresSummary.density,
-        notes: [], // Will be populated later
+        bpm: analysisResult.bpm || 120,
+        key: 'C', // Default key
+        genre: 'unknown', // Default genre
+        tags: genreResult.styleTags || [],
+        instruments: genreResult.probableInstruments || [],
+        mood: 'neutral', // Default mood
+        tempo: 'moderate', // Default tempo
+        energy: analysisResult.featuresSummary?.energy || 0.5,
+        confidence: analysisResult.confidence || 0.5,
+        styleTags: genreResult.styleTags || [],
+        probableInstruments: genreResult.probableInstruments || [],
+        density: analysisResult.featuresSummary?.density || 0.5,
+        notes: 'Analysis complete',
         genreDescription: genreResult.genreDescription,
         instrumentDescription: genreResult.instrumentDescription
       }

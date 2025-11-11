@@ -47,14 +47,14 @@ export class SunoService {
       // Create axios instance for this request
       const axiosInstance = this.createAxiosInstance(tokenData.token);
 
-      // Prepare generation request
+      // Prepare generation request (formato correcto para ai.imgkits.com)
       const generationData = {
         prompt: request.prompt,
+        lyrics: '',
+        title: '',
         style: request.style,
-        duration: request.duration,
-        quality: request.quality,
-        custom_mode: false,
-        tags: this.generateTags(request.style)
+        customMode: false,
+        instrumental: false
       };
 
       // Make request to Suno API
@@ -63,7 +63,15 @@ export class SunoService {
       });
 
       if (response.status === 200 && response.data) {
-        const sunoId = response.data.id || response.data.task_id;
+        // ai.imgkits.com devuelve taskId o id
+        const sunoId = response.data.taskId || response.data.id || response.data.task_id;
+        
+        if (!sunoId) {
+          return {
+            status: 'failed',
+            error: 'No taskId in Suno response'
+          };
+        }
         
         // Update token usage
         await this.tokenManager.updateTokenUsage(tokenData.tokenId, {
@@ -110,11 +118,18 @@ export class SunoService {
         };
       }
 
-      const axiosInstance = this.createAxiosInstance(tokenData.token);
-
-      // Check status
-      const response = await axiosInstance.get(`/status/${sunoId}`, {
-        timeout: 10000
+      // ai.imgkits.com usa polling endpoint diferente
+      const pollingUrl = process.env.SUNO_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
+      
+      const response = await axios.get(`${pollingUrl}/get_mj_status/${sunoId}`, {
+        timeout: 10000,
+        headers: {
+          'authorization': `Bearer ${tokenData.token}`,
+          'Content-Type': 'application/json',
+          'channel': 'node-api',
+          'origin': 'https://www.livepolls.app',
+          'referer': 'https://www.livepolls.app/'
+        }
       });
 
       if (response.status === 200 && response.data) {
@@ -122,43 +137,35 @@ export class SunoService {
         
         // Update token usage
         await this.tokenManager.updateTokenUsage(tokenData.tokenId, {
-          endpoint: `/status/${sunoId}`,
+          endpoint: `/get_mj_status/${sunoId}`,
           method: 'GET',
           statusCode: response.status,
           responseTime: data.responseTime || 0,
           timestamp: new Date()
         });
 
-        if (data.status === 'completed' && data.audio_url) {
+        // ai.imgkits.com devuelve { running: true/false, audio_url, ... }
+        if (data.running === false && data.audio_url) {
           return {
             status: 'completed',
             sunoId,
             audioUrl: data.audio_url,
             metadata: {
               duration: data.duration,
-              style: data.style,
-              quality: data.quality,
-              tags: data.tags,
-              createdAt: data.created_at
+              createdAt: new Date()
             }
           };
-        } else if (data.status === 'processing') {
+        } else if (data.running === true) {
           return {
             status: 'processing',
             sunoId,
-            estimatedTime: data.estimated_time || 60
-          };
-        } else if (data.status === 'failed') {
-          return {
-            status: 'failed',
-            sunoId,
-            error: data.error || 'Generation failed'
+            estimatedTime: 60
           };
         } else {
           return {
             status: 'pending',
             sunoId,
-            estimatedTime: data.estimated_time || 60
+            estimatedTime: 60
           };
         }
       } else {
@@ -182,11 +189,14 @@ export class SunoService {
    */
   private createAxiosInstance(token: string): AxiosInstance {
     return axios.create({
-      baseURL: process.env.SUNO_API_URL || 'https://api.suno.ai/v1',
+      baseURL: process.env.SUNO_API_URL || 'https://ai.imgkits.com/suno',
       timeout: 30000,
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
+        'channel': 'node-api',
+        'origin': 'https://www.livepolls.app',
+        'referer': 'https://www.livepolls.app/',
         'User-Agent': 'Super-Son1k-2.0/2.0',
         'X-Client-Version': '2.0.0'
       }
@@ -252,14 +262,19 @@ export class SunoService {
         return false;
       }
 
-      const axiosInstance = this.createAxiosInstance(tokenData.token);
-      
-      // Simple health check
-      const response = await axiosInstance.get('/health', {
-        timeout: 5000
-      });
-
-      return response.status === 200;
+      // Health check usando un endpoint simple
+      try {
+        const axiosInstance = this.createAxiosInstance(tokenData.token);
+        // Intentar una llamada simple para verificar token
+        const response = await axiosInstance.get('/generate', {
+          timeout: 5000,
+          validateStatus: () => true // Aceptar cualquier status para health check
+        });
+        // Si no es 401 (Unauthorized), el token es válido
+        return response.status !== 401;
+      } catch (error) {
+        return false;
+      }
     } catch (error) {
       console.error('Suno health check failed:', error);
       return false;

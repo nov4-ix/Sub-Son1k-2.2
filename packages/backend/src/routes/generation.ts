@@ -4,6 +4,7 @@
  */
 
 import { FastifyInstance } from 'fastify';
+import axios from 'axios';
 import { SunoService } from '../services/sunoService';
 import { AnalyticsService } from '../services/analyticsService';
 import { authMiddleware, quotaMiddleware } from '../middleware/auth';
@@ -85,14 +86,28 @@ export function generationRoutes(sunoService: SunoService, analyticsService: Ana
           }
         });
 
-        // Update user usage
-        await fastify.prisma.userTier.update({
-          where: { userId: user.id },
-          data: {
-            usedThisMonth: { increment: 1 },
-            usedToday: { increment: 1 }
+        // Update user usage (skip for system user)
+        if (user.id !== 'system') {
+          try {
+            await fastify.prisma.userTier.upsert({
+              where: { userId: user.id },
+              create: {
+                userId: user.id,
+                usedThisMonth: 1,
+                usedToday: 1,
+                monthlyGenerations: user.monthlyGenerations || 10,
+                dailyGenerations: 5
+              },
+              update: {
+                usedThisMonth: { increment: 1 },
+                usedToday: { increment: 1 }
+              }
+            });
+          } catch (error) {
+            // Log but don't fail the request
+            console.warn('Could not update user tier:', error);
           }
-        });
+        }
 
         return {
           success: true,
@@ -142,23 +157,28 @@ export function generationRoutes(sunoService: SunoService, analyticsService: Ana
           });
         }
 
-        // Check status with Suno API if still pending
-        if (generation.status === 'pending' && generation.sunoId) {
+        // Check status with Suno API if still pending or processing
+        if ((generation.status === 'pending' || generation.status === 'processing') && generation.sunoId) {
           const status = await sunoService.checkGenerationStatus(generation.sunoId);
           
-          if (status.status !== generation.status) {
+          // Normalize status (pending -> processing for consistency)
+          const normalizedStatus = status.status === 'pending' ? 'processing' : status.status;
+          
+          if (normalizedStatus !== generation.status || status.audioUrl) {
             await fastify.prisma.generation.update({
               where: { id: generation.id },
               data: {
-                status: status.status,
-                audioUrl: status.audioUrl,
-                metadata: status.metadata
+                status: normalizedStatus,
+                audioUrl: status.audioUrl || generation.audioUrl,
+                metadata: status.metadata ? JSON.stringify(status.metadata) : generation.metadata
               }
             });
 
-            generation.status = status.status;
-            generation.audioUrl = status.audioUrl;
-            generation.metadata = status.metadata;
+            generation.status = normalizedStatus;
+            generation.audioUrl = status.audioUrl || generation.audioUrl;
+            if (status.metadata) {
+              generation.metadata = JSON.stringify(status.metadata);
+            }
           }
         }
 
@@ -291,6 +311,108 @@ export function generationRoutes(sunoService: SunoService, analyticsService: Ana
           error: {
             code: 'DELETE_FAILED',
             message: 'Failed to delete generation'
+          }
+        });
+      }
+    });
+
+    // Generate cover (for Ghost Studio)
+    fastify.post('/cover', {
+      preHandler: [authMiddleware]
+    }, async (request, reply) => {
+      const user = (request as any).user;
+      const { audio_url, prompt, style, customMode } = request.body as any;
+
+      try {
+        // Validate input
+        if (!audio_url || !prompt) {
+          return reply.code(400).send({
+            success: false,
+            error: {
+              code: 'INVALID_INPUT',
+              message: 'audio_url and prompt are required'
+            }
+          });
+        }
+
+        // Get a healthy token from pool
+        const tokenData = await fastify.tokenManager.getHealthyToken(user.id);
+        
+        if (!tokenData) {
+          return reply.code(503).send({
+            success: false,
+            error: {
+              code: 'NO_TOKENS_AVAILABLE',
+              message: 'No available tokens in pool'
+            }
+          });
+        }
+
+        // Call Suno Cover API
+        const response = await axios.post('https://usa.imgkits.com/node-api/suno/cover', {
+          audio_url,
+          prompt,
+          customMode: customMode || true,
+          style: style || 'cover'
+        }, {
+          headers: {
+            'Content-Type': 'application/json',
+            'authorization': `Bearer ${tokenData.token}`,
+            'channel': 'node-api',
+            'origin': 'https://www.livepolls.app',
+            'referer': 'https://www.livepolls.app/'
+          },
+          timeout: 30000
+        });
+
+        if (response.status !== 200 || !response.data) {
+          return reply.code(500).send({
+            success: false,
+            error: {
+              code: 'SUNO_API_ERROR',
+              message: 'Suno API error'
+            }
+          });
+        }
+
+        const data = response.data;
+        const taskId = data.data?.taskId || data.taskId || data.task_id;
+
+        if (!taskId) {
+          return reply.code(500).send({
+            success: false,
+            error: {
+              code: 'NO_TASK_ID',
+              message: 'No task ID received from Suno'
+            }
+          });
+        }
+
+        // Update token usage
+        await fastify.tokenManager.updateTokenUsage(tokenData.tokenId, {
+          endpoint: '/cover',
+          method: 'POST',
+          statusCode: response.status,
+          responseTime: 0,
+          timestamp: new Date()
+        });
+
+        return {
+          success: true,
+          data: {
+            taskId,
+            status: 'pending',
+            message: 'Cover generation started'
+          }
+        };
+
+      } catch (error: any) {
+        console.error('Cover generation error:', error);
+        return reply.code(500).send({
+          success: false,
+          error: {
+            code: 'COVER_GENERATION_FAILED',
+            message: error.response?.data?.message || error.message || 'Failed to generate cover'
           }
         });
       }

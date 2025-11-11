@@ -203,8 +203,8 @@ export default function GeneratorPage() {
           setGenerationMessage('')
           setIsGeneratingMusic(false)
         }, 3000)
-      } else if (data.trackId) {
-        pollTrackStatus(data.trackId)
+      } else if (data.trackId || data.generationId) {
+        pollTrackStatus(data.trackId || data.sunoId, data.generationId)
       } else {
         throw new Error('No se generó música')
       }
@@ -215,10 +215,10 @@ export default function GeneratorPage() {
     }
   }
 
-  const pollTrackStatus = async (trackId: string) => {
+  const pollTrackStatus = async (trackId: string, generationId?: string) => {
     let attempts = 0
     const startTime = Date.now()
-    const maxTime = 3 * 60 * 1000
+    const maxTime = 5 * 60 * 1000 // 5 minutos máximo
     const getNextInterval = (elapsed: number): number => {
       if (elapsed < 10000) return 2000
       if (elapsed < 30000) return 3000
@@ -231,9 +231,14 @@ export default function GeneratorPage() {
         const elapsed = Date.now() - startTime
         const elapsedSeconds = Math.floor(elapsed / 1000)
         if (elapsed > maxTime) {
-          throw new Error('La generación tardó más de 3 minutos. Por favor, intenta de nuevo.')
+          throw new Error('La generación tardó más de 5 minutos. Por favor, intenta de nuevo.')
         }
-        const res = await fetch(`/api/track-status?trackId=${trackId}`)
+        
+        // Preferir generationId si está disponible (usa backend)
+        const queryParam = generationId 
+          ? `generationId=${generationId}&trackId=${trackId || ''}` 
+          : `trackId=${trackId}`
+        const res = await fetch(`/api/track-status?${queryParam}`)
         const data = await res.json()
         if (data.error) throw new Error(data.error)
         const progress = data.progress || 30

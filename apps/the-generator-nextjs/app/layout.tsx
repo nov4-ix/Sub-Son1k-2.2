@@ -1,9 +1,7 @@
-'use client';
-
 import './globals.css';
 import './globals-mobile.css';
 import type { Metadata, Viewport } from 'next';
-import { AuthProvider } from '../context/AuthContext';
+import ClientAuthProvider from '../components/ClientAuthProvider';
 
 export const metadata: Metadata = {
   title: 'Son1kvers3 - The Generator',
@@ -42,9 +40,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="safe-area-top safe-area-bottom">
-        <AuthProvider>
+        <ClientAuthProvider>
           {children}
-        </AuthProvider>
+        </ClientAuthProvider>
       </body>
     </html>
   );

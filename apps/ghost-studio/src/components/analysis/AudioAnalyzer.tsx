@@ -42,7 +42,7 @@ export function AudioAnalyzer({ audioFile, onComplete }: Props) {
       setCurrentStep('Analyzing audio features...');
       setProgress(50);
       
-      const result = await audioAnalyzer.analyzeFile(audioBuffer);
+      const result = await audioAnalyzer.analyze(audioBuffer);
       
       setProgress(80);
       setCurrentStep('Finalizing analysis...');
@@ -161,7 +161,7 @@ export function AudioAnalyzer({ audioFile, onComplete }: Props) {
               </div>
               <div>
                 <span className="text-white/70">Energy:</span>
-                <span className="text-yellow-400 ml-2 font-mono">{(analysis.energy * 100).toFixed(0)}%</span>
+                <span className="text-yellow-400 ml-2 font-mono">{(analysis.energy ? (analysis.energy * 100).toFixed(0) : 0)}%</span>
               </div>
             </div>
           </motion.div>

@@ -145,9 +145,15 @@ export function ABPlayer({ originalAudio, generatedAudio }: Props) {
                 <div className="bg-carbon/50 rounded-lg p-4 border border-white/10">
                   <div className="text-sm text-white/70 mb-2">File Info</div>
                   <div className="text-xs text-white/50 space-y-1">
+                    {originalAudio.duration && (
                     <div>Duration: {Math.round(originalAudio.duration)}s</div>
+                    )}
+                    {originalAudio.format && (
                     <div>Format: {originalAudio.format.toUpperCase()}</div>
+                    )}
+                    {originalAudio.size && (
                     <div>Size: {(originalAudio.size / 1024 / 1024).toFixed(1)}MB</div>
+                    )}
                   </div>
                 </div>
 
@@ -214,7 +220,9 @@ export function ABPlayer({ originalAudio, generatedAudio }: Props) {
                   <div className="text-xs text-white/50 space-y-1">
                     <div>Status: {generatedAudio.status}</div>
                     {generatedAudio.duration && <div>Duration: {generatedAudio.duration}s</div>}
+                    {generatedAudio.createdAt && (
                     <div>Created: {new Date(generatedAudio.createdAt).toLocaleString()}</div>
+                    )}
                   </div>
                 </div>
 

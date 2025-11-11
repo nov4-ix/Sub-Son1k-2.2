@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useExtensionInstaller } from '../lib/extension-installer'
-import { Button } from '@super-son1k/shared-ui'
+import { Button } from './ui/button'
 
 interface TermsAcceptanceProps {
   userId: string

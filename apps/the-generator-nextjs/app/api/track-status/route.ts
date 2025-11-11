@@ -6,20 +6,80 @@ export async function GET(req: NextRequest) {
   
   try {
     const trackId = req.nextUrl.searchParams.get('trackId')
+    const generationId = req.nextUrl.searchParams.get('generationId')
     console.log('🎯 TrackId:', trackId)
+    console.log('🎯 GenerationId:', generationId)
     
-    if (!trackId) {
-      console.log('❌ trackId no proporcionado')
-      return NextResponse.json({ error: 'trackId requerido' }, { status: 400 })
+    if (!trackId && !generationId) {
+      console.log('❌ trackId o generationId requerido')
+      return NextResponse.json({ error: 'trackId o generationId requerido' }, { status: 400 })
     }
     
-    const SUNO_TOKEN = process.env.SUNO_COOKIE
-    if (!SUNO_TOKEN) {
-      console.log('❌ SUNO_COOKIE no configurada en .env.local')
-      return NextResponse.json({ error: 'SUNO_COOKIE no configurada' }, { status: 500 })
+    // ✅ USAR BACKEND PROPIO en lugar de llamar directamente a Suno
+    const BACKEND_FALLBACK = 'https://backend-jo27sb8hr-son1kvers3s-projects-c3cdfb54.vercel.app'
+    const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || BACKEND_FALLBACK
+    
+    // Si tenemos generationId, usar endpoint del backend
+    if (generationId) {
+      console.log('📡 Llamando al backend para obtener status...')
+      const response = await fetch(`${BACKEND_URL}/api/generation/${generationId}/status`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.BACKEND_SECRET || 'dev-token'}`
+        }
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'No response body')
+        console.log('❌ Error del backend:', errorText)
+        
+        // Si falla, intentar con trackId directamente
+        if (trackId) {
+          return await checkSunoStatusDirectly(trackId)
+        }
+        
+        throw new Error(`Backend error ${response.status}: ${errorText}`)
+      }
+      
+      const data = await response.json()
+      console.log('📦 Response del backend:', JSON.stringify(data, null, 2))
+      
+      if (data.success && data.data) {
+        const gen = data.data
+        return NextResponse.json({
+          trackId: gen.id,
+          generationId: gen.id,
+          status: gen.status === 'completed' ? 'complete' : gen.status,
+          audioUrl: gen.audioUrl,
+          audioUrls: gen.audioUrl ? [gen.audioUrl] : undefined,
+          progress: gen.status === 'completed' ? 100 : gen.status === 'processing' ? 70 : 50
+        })
+      }
     }
     
-    console.log('📡 Llamando a usa.imgkits.com...')
+    // Fallback: llamar directamente a Suno si solo tenemos trackId (sunoId)
+    if (trackId) {
+      return await checkSunoStatusDirectly(trackId)
+    }
+    
+    throw new Error('No se pudo obtener el status')
+    
+  } catch (error) {
+    console.error('❌ ERROR en track-status:', error)
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    const errorMessage = error instanceof Error ? error.message : 'Error consultando estado del track';
+    return NextResponse.json({ 
+      error: errorMessage,
+      trackId: req.nextUrl.searchParams.get('trackId')
+    }, { status: 500 })
+    }
+}
+
+// Función helper para consultar Suno directamente (fallback)
+async function checkSunoStatusDirectly(trackId: string): Promise<NextResponse> {
+  try {
+  console.log('📡 Llamando directamente a usa.imgkits.com (fallback)...')
     // ✅ Headers exactos de la extensión para evitar caché
     const response = await fetch(`https://usa.imgkits.com/node-api/suno/get_mj_status/${trackId}`, {
       method: 'GET',
@@ -159,13 +219,13 @@ export async function GET(req: NextRequest) {
       audioUrls: audioUrls.length > 0 ? audioUrls : undefined,
       progress
     })
-    
-  } catch (error: any) {
-    console.error('❌ ERROR en track-status:', error)
+  } catch (error) {
+    console.error('❌ ERROR en checkSunoStatusDirectly:', error)
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    const errorMessage = error instanceof Error ? error.message : 'Error consultando estado del track';
     return NextResponse.json({ 
-      error: error.message || 'Error consultando estado del track',
-      trackId: req.nextUrl.searchParams.get('trackId')
+      error: errorMessage,
+      trackId: trackId
     }, { status: 500 })
   }
 }

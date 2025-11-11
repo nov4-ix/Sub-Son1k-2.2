@@ -41,7 +41,7 @@ export function GenerationProgress({ status, error, onComplete }: Props) {
     if (error) return 'Generation Failed';
     if (status?.status === 'completed') return 'Generation Complete!';
     if (status?.status === 'processing') return 'Generating your cover';
-    if (status?.status === 'pending') return 'Queued for generation';
+    if (status?.status === 'pending' || !status?.status) return 'Queued for generation';
     return 'Starting generation';
   };
 
@@ -49,7 +49,7 @@ export function GenerationProgress({ status, error, onComplete }: Props) {
     if (error) return error;
     if (status?.status === 'completed') return 'Your AI-generated cover is ready!';
     if (status?.status === 'processing') return `Creating your musical masterpiece${dots}`;
-    if (status?.status === 'pending') return 'Your request is in the queue';
+    if (status?.status === 'pending' || !status?.status) return 'Your request is in the queue';
     return 'Preparing to generate your cover';
   };
 
@@ -151,7 +151,9 @@ export function GenerationProgress({ status, error, onComplete }: Props) {
               {status.duration && (
                 <div>Duration: {status.duration}s</div>
               )}
+              {status.createdAt && (
               <div>Generated: {new Date(status.createdAt).toLocaleString()}</div>
+              )}
             </div>
           </motion.div>
         )}

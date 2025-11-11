@@ -1,1 +1,1 @@
-export { TheGeneratorPage } from './TheRedTest'
+export { TheGeneratorPage } from './TheGeneratorPage'

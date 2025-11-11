@@ -4,7 +4,7 @@
  * Hybrid architecture combining the best of son1kvers3 and ALFASSV
  */
 
-import Fastify from 'fastify';
+import Fastify from 'fastify'; 
 import WebSocket from '@fastify/websocket';
 import SocketIO from 'socket.io';
 import cors from '@fastify/cors';
@@ -252,12 +252,29 @@ async function registerRoutes() {
   await fastify.register(stripeRoutes, { prefix: '/api/stripe' });
   await fastify.register(extensionRoutes(userExtensionService), { prefix: '/api/extension' });
 
-  // Protected routes (auth required)
-  fastify.addHook('onRequest', authMiddleware);
-
-  // Token management routes
+  // Token routes (PUBLIC /add-public endpoint, protected routes use authMiddleware)
   await fastify.register(tokenRoutes(tokenManager, tokenPoolService), {
     prefix: '/api/tokens'
+  });
+
+  // Protected routes (auth required) - Add hook AFTER public routes
+  fastify.addHook('onRequest', async (request, reply) => {
+    // Skip auth for public endpoints
+    const publicPaths = [
+      '/api/auth',
+      '/api/tokens/add-public',
+      '/api/tokens/pool/status',
+      '/api/extension/config',
+      '/api/extension/validate-token',
+      '/health'
+    ];
+    
+    const isPublicPath = publicPaths.some(path => request.url.startsWith(path));
+    
+    if (!isPublicPath) {
+      // Apply auth middleware for protected routes
+      return authMiddleware(request, reply);
+    }
   });
 
   // Generation routes with Suno integration

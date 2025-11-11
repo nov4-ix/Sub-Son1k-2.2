@@ -10,12 +10,12 @@
 
 ### 1. Ghost Studio ⚡ (90% listo)
 - [x] Deploy en Vercel ✅
-- [x] **Verificar** que carga correctamente
-- [x] **Test** upload audio + generate cover
-- [x] **Fix** cualquier error de consola
+- [ ] **Verificar** que carga correctamente
+- [ ] **Test** upload audio + generate cover
+- [ ] **Fix** cualquier error de consola
 - [ ] **Añadir** Pixel AI integration (opcional hoy)
 
-**URL:** `ghost-studio.vercel.app`
+**URL:** `ghost-studio.vercel.app`  
 **Tiempo estimado:** 15 min
 
 ---
@@ -57,16 +57,19 @@
 ## ✅ PRIORIDAD 2: PIXEL AI (Completar Integration)
 
 ### Pixel AI Status:
-- ❌ **Código NO existe** - necesita ser creado
-- ❌ **NO funciona local** - Ollama no configurado
-- ⚠️ **FALTA:** Todo el sistema Pixel AI
+- ✅ Código existe en `apps/web-classic/src/lib/`
+- ✅ Funciona local con Ollama
+- ⚠️ **FALTA:** Integrar en apps principales
 
 ### Tasks:
-- [ ] **Crear** código Pixel (`pixelAI.ts`, `qwenClient.ts`, `PixelChatAdvanced.tsx`)
-- [ ] **Setup** Ollama local con Qwen 2.5
+- [ ] **Verificar** código Pixel existe (`pixelAI.ts`, `qwenClient.ts`, `PixelChatAdvanced.tsx`)
 - [ ] **Test** local: `ollama serve` + `cd apps/web-classic && npm run dev`
-- [ ] **Integrar** Pixel button en 1-2 apps principales (beta mínimo)
-- [ ] **Deploy** web-classic con Pixel básico
+- [ ] **Integrar** Pixel button en:
+  - [ ] Ghost Studio
+  - [ ] Nova Post Pilot
+  - [ ] The Generator
+  - [ ] Nexus Visual
+- [ ] **Deploy** web-classic con Pixel funcionando
 
 **Tiempo estimado:** 30-45 min
 
@@ -77,17 +80,14 @@
 ### Backend Status:
 - ✅ Código completo existe (`packages/backend/src/`)
 - ✅ Rutas: auth, generation, tokens, etc.
-- ✅ Variables de entorno configuradas
-- ✅ Configuración de deployment (Vercel + Railway)
-- ⚠️ **FALTA:** Probar funcionamiento (bloqueado por PowerShell)
+- ⚠️ **FALTA:** Verificar que corre localmente
 
 ### Tasks:
-- [x] **Setup** `.env` en `packages/backend/`
-- [x] **Crear** `vercel.json` y `railway.toml`
-- [ ] **Test** `cd packages/backend && npm run dev` (bloqueado por PowerShell)
+- [ ] **Setup** `.env` en `packages/backend/`
+- [ ] **Test** `cd packages/backend && npm run dev`
 - [ ] **Verificar** `/health` endpoint responde
 - [ ] **Test** `/api/auth/register` funciona
-- [ ] **Deploy** a Railway/Vercel para testing real
+- [ ] **Quick fix** errores críticos
 
 **Tiempo estimado:** 20-30 min
 
@@ -100,11 +100,11 @@
 - ❌ **FALTA:** Componentes base
 
 ### Tasks RÁPIDOS (solo lo esencial):
-- [x] **Crear** `packages/shared-ui/src/Button.tsx` (con glassmorphism)
-- [x] **Crear** `packages/shared-ui/src/Input.tsx`
-- [x] **Crear** `packages/shared-ui/src/Card.tsx`
-- [x] **Exportar** desde `index.ts`
-- [x] **Test** que se importa en apps (Nova Post Pilot NO usa componentes compartidos)
+- [ ] **Crear** `packages/shared-ui/src/Button.tsx` (con glassmorphism)
+- [ ] **Crear** `packages/shared-ui/src/Input.tsx`
+- [ ] **Crear** `packages/shared-ui/src/Card.tsx`
+- [ ] **Exportar** desde `index.ts`
+- [ ] **Test** que se importa en apps
 
 **Tiempo estimado:** 30 min
 
@@ -113,8 +113,8 @@
 ## ✅ PRIORIDAD 5: VARIABLES DE ENTORNO (Verificar)
 
 - [x] ✅ Vercel envs configuradas (SUPABASE_URL, SUPABASE_ANON_KEY)
-- [x] **Verificar** cada app tiene su `.env.local.example` (usa Vercel envs)
-- [x] **Documentar** qué vars necesita cada app (completado en summary)
+- [ ] **Verificar** cada app tiene su `.env.local.example`
+- [ ] **Documentar** qué vars necesita cada app
 
 **Tiempo estimado:** 10 min
 
@@ -208,3 +208,4 @@
 ---
 
 **¡Vamos a hacerlo! 💪✨**
+
