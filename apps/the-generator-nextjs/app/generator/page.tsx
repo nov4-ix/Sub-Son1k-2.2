@@ -1,12 +1,13 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Music, Sparkles, Play, Download, Loader2, Mic2, User, Users, Shuffle, Wand2, Settings, BookOpen, Heart, Zap, Palette, Pause, Volume2, VolumeX, SkipForward, SkipBack } from 'lucide-react'
 import { useGeneratorStore } from '../../lib/store/generatorStore'
 import { Knob } from '../../lib/components/ui/Knob'
-import { TwoTrackPlayer } from '../../lib/components/TwoTrackPlayer'
 import { useGenerationProgress } from '../../lib/hooks/useGenerationProgress'
+
+// Note: Lazy loading removed as components are not used in this page
+// TwoTrackPlayer and motion are not imported here
 
 export default function GeneratorPage() {
   const { knobs, setKnobs, isCustomMode, toggleMode } = useGeneratorStore()
@@ -58,10 +59,16 @@ export default function GeneratorPage() {
   const [duration, setDuration] = useState(180)
   const audioRef = React.useRef<HTMLAudioElement>(null)
 
-  const tracks = [
+  // Memoize tracks to prevent unnecessary re-renders
+  const tracks = useMemo(() => [
     { id: 'track1', name: trackUrls[0] ? 'Pista 1' : 'Generando...', url: trackUrls[0] || '', duration: 180 },
     { id: 'track2', name: trackUrls[1] ? 'Pista 2' : 'Generando...', url: trackUrls[1] || '', duration: 180 }
-  ]
+  ], [trackUrls])
+
+  // Memoize estimated time calculation
+  const estimatedTime = useMemo(() => {
+    return Math.max(0, Math.round((100 - generationProgress) / 100 * 120))
+  }, [generationProgress])
 
   useEffect(() => {
     if (!audioRef.current) return
@@ -94,17 +101,19 @@ export default function GeneratorPage() {
     }
   }, [currentTrack])
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Memoize handlers to prevent unnecessary re-renders
+  const handleSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newPosition = parseFloat(e.target.value)
     setPosition(newPosition)
     if (audioRef.current) {
       audioRef.current.currentTime = newPosition
     }
-  }
+  }, [])
 
   const currentTrackUrl = tracks.find(t => t.id === currentTrack)?.url || ''
 
-  const getLiteraryPrompt = () => {
+  // Memoize literary prompt generation to avoid recalculation
+  const getLiteraryPrompt = useCallback(() => {
     const settings = knobs
     let prompt = ''
     if (settings.emotionalIntensity >= 8) prompt += 'Usa emociones intensas y dramáticas. '
@@ -132,7 +141,7 @@ export default function GeneratorPage() {
     else prompt += 'Desarrolla el tema de manera equilibrada. '
 
     return prompt.trim()
-  }
+  }, [knobs])
 
   const handleGenerateLyrics = async () => {
     if (!lyricsInput?.trim()) {
@@ -478,7 +487,7 @@ export default function GeneratorPage() {
               <div className="h-full bg-gradient-to-r from-[#00FFE7] via-[#B84DFF] to-[#FF1744] transition-all duration-500 rounded-full" style={{width:`${generationProgress}%`}}/>
             </div>
             <p className="mt-3 text-center text-sm text-gray-400">
-              Tiempo estimado: {Math.max(0,Math.round((100-generationProgress)/100*120))}s
+              Tiempo estimado: {estimatedTime}s
               {generationProgress === 50 && (
                 <span className="block text-yellow-400 mt-1">
                   ⚠️ Si se queda atascado en 50%, cancela e intenta de nuevo
