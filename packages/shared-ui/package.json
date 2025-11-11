@@ -1,0 +1,23 @@
+{
+  "name": "@super-son1k/shared-ui",
+  "version": "1.0.0",
+  "description": "Shared UI components for Super-Son1k platform",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@super-son1k/shared-types": "workspace:*",
+    "@super-son1k/shared-hooks": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "react": "^18.2.0",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "lucide-react": "^0.545.0"
+  }
+}

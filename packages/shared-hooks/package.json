@@ -1,0 +1,22 @@
+{
+  "name": "@super-son1k/shared-hooks",
+  "version": "1.0.0",
+  "description": "Shared React hooks for Super-Son1k platform",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@super-son1k/shared-types": "workspace:*",
+    "@super-son1k/shared-services": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "react": "^18.2.0",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0"
+  }
+}
