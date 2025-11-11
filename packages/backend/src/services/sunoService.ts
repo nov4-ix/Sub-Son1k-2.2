@@ -5,6 +5,7 @@
 
 import { TokenManager } from './tokenManager';
 import axios, { AxiosInstance } from 'axios';
+import { env } from '../lib/config';
 
 export interface GenerationRequest {
   prompt: string;
@@ -119,7 +120,8 @@ export class SunoService {
       }
 
       // ai.imgkits.com usa polling endpoint diferente
-      const pollingUrl = process.env.SUNO_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
+      // ✅ VALIDAR VARIABLE DE ENTORNO
+      const pollingUrl = env.SUNO_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
       
       const response = await axios.get(`${pollingUrl}/get_mj_status/${sunoId}`, {
         timeout: 10000,
@@ -188,8 +190,10 @@ export class SunoService {
    * Create axios instance for Suno API
    */
   private createAxiosInstance(token: string): AxiosInstance {
+    // ✅ VALIDAR VARIABLE DE ENTORNO (prevenir crashes)
+    const baseURL = env.SUNO_API_URL || 'https://ai.imgkits.com/suno';
     return axios.create({
-      baseURL: process.env.SUNO_API_URL || 'https://ai.imgkits.com/suno',
+      baseURL,
       timeout: 30000,
       headers: {
         'authorization': `Bearer ${token}`,

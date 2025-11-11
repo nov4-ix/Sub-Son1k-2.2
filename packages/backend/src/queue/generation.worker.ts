@@ -112,6 +112,31 @@ export function createGenerationWorker(
               audioUrl: result.audioUrl
             }
           });
+
+          // ✅ SOLO DECREMENTAR CRÉDITOS DESPUÉS DE ÉXITO CONFIRMADO
+          // Esto asegura que el usuario no pierde créditos si la API falla
+          if (userId !== 'system') {
+            try {
+              await prisma.userTier.upsert({
+                where: { userId },
+                create: {
+                  userId,
+                  usedThisMonth: 1,
+                  usedToday: 1,
+                  monthlyGenerations: 10,
+                  dailyGenerations: 5
+                },
+                update: {
+                  usedThisMonth: { increment: 1 },
+                  usedToday: { increment: 1 }
+                }
+              });
+              console.log(`✅ Créditos decrementados para usuario ${userId} después de éxito confirmado`);
+            } catch (error) {
+              // Log but don't fail - el audio ya está generado
+              console.warn('Could not update user tier after success:', error);
+            }
+          }
         }
 
         // Emit completion

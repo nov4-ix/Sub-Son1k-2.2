@@ -38,7 +38,8 @@
     "sharp": "^0.33.0",
     "socket.io": "^4.7.0",
     "stripe": "^13.0.0",
-    "@supabase/supabase-js": "^2.75.0"
+    "@supabase/supabase-js": "^2.75.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

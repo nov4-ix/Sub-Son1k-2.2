@@ -49,6 +49,9 @@ import { createGenerationWorker } from './queue/generation.worker';
 // Import utilities
 import { ENVIRONMENTS, API } from '@super-son1k/shared-utils';
 
+// Import config validation (validates env vars on startup - CRITICAL)
+import { env } from './lib/config';
+
 const fastify = Fastify({
   logger: {
     level: process.env.LOG_LEVEL || 'info'

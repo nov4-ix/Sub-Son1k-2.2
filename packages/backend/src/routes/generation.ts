@@ -9,6 +9,8 @@ import { SunoService } from '../services/sunoService';
 import { AnalyticsService } from '../services/analyticsService';
 import { authMiddleware, quotaMiddleware } from '../middleware/auth';
 import { addGenerationJob, getJobStatus } from '../queue';
+import { generationRequestSchema, validateRequest } from '../lib/validation';
+import { env } from '../lib/config';
 
 export function generationRoutes(sunoService: SunoService, analyticsService: AnalyticsService) {
   return async function(fastify: FastifyInstance) {
@@ -17,19 +19,24 @@ export function generationRoutes(sunoService: SunoService, analyticsService: Ana
       preHandler: [authMiddleware, quotaMiddleware]
     }, async (request, reply) => {
       const user = (request as any).user;
-      const { prompt, style, duration, quality } = request.body as any;
 
       try {
-        // Validate input
-        if (!prompt || typeof prompt !== 'string') {
+        // ✅ VALIDAR INPUT CON ZOD (Backend validation)
+        let validatedData;
+        try {
+          validatedData = validateRequest(generationRequestSchema, request.body);
+        } catch (validationError: any) {
           return reply.code(400).send({
             success: false,
             error: {
-              code: 'INVALID_PROMPT',
-              message: 'Prompt is required and must be a string'
+              code: 'VALIDATION_ERROR',
+              message: validationError.message,
+              details: validationError.details
             }
           });
         }
+
+        const { prompt, style, duration, quality } = validatedData;
 
         // Check user limits
         const quotaInfo = (request as any).quotaInfo;
@@ -39,6 +46,18 @@ export function generationRoutes(sunoService: SunoService, analyticsService: Ana
             error: {
               code: 'QUOTA_EXCEEDED',
               message: 'Monthly generation quota exceeded'
+            }
+          });
+        }
+
+        // ✅ VALIDAR VARIABLES DE ENTORNO (Prevenir crashes)
+        if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+          console.error('❌ Supabase configuration missing');
+          return reply.code(500).send({
+            success: false,
+            error: {
+              code: 'CONFIGURATION_ERROR',
+              message: 'Server configuration error. Contact support.'
             }
           });
         }
@@ -67,6 +86,7 @@ export function generationRoutes(sunoService: SunoService, analyticsService: Ana
         });
 
         // Add generation job to queue (async processing)
+        // ✅ CRÉDITOS SOLO SE DECREMENTAN DESPUÉS DE ÉXITO (en el worker)
         await addGenerationJob({
           generationId: generation.id,
           userId: user.id,
@@ -77,28 +97,8 @@ export function generationRoutes(sunoService: SunoService, analyticsService: Ana
           tier: user.tier || 'FREE'
         });
 
-        // Update user usage (skip for system user)
-        if (user.id !== 'system') {
-          try {
-            await fastify.prisma.userTier.upsert({
-              where: { userId: user.id },
-              create: {
-                userId: user.id,
-                usedThisMonth: 1,
-                usedToday: 1,
-                monthlyGenerations: user.monthlyGenerations || 10,
-                dailyGenerations: 5
-              },
-              update: {
-                usedThisMonth: { increment: 1 },
-                usedToday: { increment: 1 }
-              }
-            });
-          } catch (error) {
-            // Log but don't fail the request
-            console.warn('Could not update user tier:', error);
-          }
-        }
+        // ✅ NO DECREMENTAR CRÉDITOS AQUÍ - Solo después de éxito en el worker
+        // Los créditos se actualizan en generation.worker.ts después de éxito confirmado
 
         // Return immediately with pending status
         return {
