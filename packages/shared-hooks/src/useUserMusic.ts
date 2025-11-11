@@ -97,13 +97,13 @@ export function useUserMusic(options: UseUserMusicOptions = {}) {
   useEffect(() => {
     if (!firestore || !userId || !enabled) return;
 
-    const { collection, query, where, orderBy, onSnapshot } = firestore;
+    const { collection, query, where, orderBy, limit: limitFn, onSnapshot } = firestore;
     
     const q = query(
       collection('music'),
       where('userId', '==', userId),
       orderBy('createdAt', 'desc'),
-      limit(pageSize)
+      limitFn(pageSize)
     );
 
     const unsubscribe = onSnapshot(

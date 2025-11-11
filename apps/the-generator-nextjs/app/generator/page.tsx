@@ -6,6 +6,7 @@ import { Music, Sparkles, Play, Download, Loader2, Mic2, User, Users, Shuffle, W
 import { useGeneratorStore } from '../../lib/store/generatorStore'
 import { Knob } from '../../lib/components/ui/Knob'
 import { TwoTrackPlayer } from '../../lib/components/TwoTrackPlayer'
+import { useGenerationProgress } from '../../lib/hooks/useGenerationProgress'
 
 export default function GeneratorPage() {
   const { knobs, setKnobs, isCustomMode, toggleMode } = useGeneratorStore()
@@ -23,6 +24,33 @@ export default function GeneratorPage() {
   const [generationProgress, setGenerationProgress] = useState(0)
   const [generationMessage, setGenerationMessage] = useState('')
   const [cancelGeneration, setCancelGeneration] = useState(false)
+  const [currentGenerationId, setCurrentGenerationId] = useState<string | null>(null)
+  
+  // WebSocket integration for real-time progress
+  const { progress: wsProgress, isConnected: wsConnected } = useGenerationProgress(currentGenerationId)
+
+  // Update progress from WebSocket
+  useEffect(() => {
+    if (wsProgress) {
+      setGenerationProgress(wsProgress.progress)
+      setGenerationMessage(wsProgress.message || 'Generando música...')
+      
+      if (wsProgress.status === 'completed' && wsProgress.audioUrl) {
+        setTrackUrls([wsProgress.audioUrl])
+        setIsGeneratingMusic(false)
+        setGenerationProgress(100)
+        setGenerationMessage('🎉 ¡Música generada exitosamente!')
+        setCurrentTrack('track1')
+        setIsPlaying(true)
+        setCurrentGenerationId(null) // Reset
+      } else if (wsProgress.status === 'failed') {
+        setIsGeneratingMusic(false)
+        setError(wsProgress.error || 'Error en la generación')
+        setCurrentGenerationId(null) // Reset
+        setTimeout(() => setError(''), 5000)
+      }
+    }
+  }, [wsProgress])
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTrack, setCurrentTrack] = useState<string | null>(null)
   const [volume, setVolume] = useState(75)
@@ -203,8 +231,16 @@ export default function GeneratorPage() {
           setGenerationMessage('')
           setIsGeneratingMusic(false)
         }, 3000)
-      } else if (data.trackId || data.generationId) {
-        pollTrackStatus(data.trackId || data.sunoId, data.generationId)
+      } else if (data.generationId) {
+        // Use WebSocket for real-time updates if generationId is available
+        setCurrentGenerationId(data.generationId)
+        // Fallback to polling if WebSocket not connected
+        if (!wsConnected) {
+          pollTrackStatus(data.trackId || data.sunoId, data.generationId)
+        }
+      } else if (data.trackId || data.sunoId) {
+        // Fallback to polling for old API format
+        pollTrackStatus(data.trackId || data.sunoId)
       } else {
         throw new Error('No se generó música')
       }
