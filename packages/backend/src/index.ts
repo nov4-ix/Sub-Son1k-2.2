@@ -43,6 +43,9 @@ import { cacheService } from './services/cacheService';
 // Import WebSocket handlers
 import { setupWebSocket } from './services/websocketService';
 
+// Import Queue system
+import { createGenerationWorker } from './queue/generation.worker';
+
 // Import utilities
 import { ENVIRONMENTS, API } from '@super-son1k/shared-utils';
 
@@ -303,12 +306,21 @@ async function registerRoutes() {
   });
 }
 
+// Store worker reference for graceful shutdown
+let generationWorker: Awaited<ReturnType<typeof createGenerationWorker>> | null = null;
+
 // Graceful shutdown
 async function gracefulShutdown(signal: string) {
   fastify.log.info(`Received ${signal}, shutting down gracefully...`);
 
   // Close WebSocket connections
   io.close();
+
+  // Close generation worker
+  if (generationWorker) {
+    await generationWorker.close();
+    fastify.log.info('Generation worker closed');
+  }
 
   // Close database connections
   await prisma.$disconnect();
@@ -347,6 +359,10 @@ async function start() {
     // Setup WebSocket
     setupWebSocket(io as any, collaborationService, analyticsService);
 
+    // Initialize BullMQ worker for generation queue
+    generationWorker = createGenerationWorker(prisma, sunoService, io as any);
+    fastify.log.info('Generation worker initialized');
+
     // Start HTTP server
     const port = parseInt(process.env.PORT || '3001');
     const host = process.env.HOST || '0.0.0.0';
@@ -356,6 +372,7 @@ async function start() {
     fastify.log.info(`🚀 Super-Son1k-2.0 Backend running on ${host}:${port}`);
     fastify.log.info(`📊 Environment: ${process.env.NODE_ENV || ENVIRONMENTS.DEVELOPMENT}`);
     fastify.log.info(`🔗 WebSocket server ready`);
+    fastify.log.info(`⚙️ BullMQ queue system active`);
     fastify.log.info(`🎵 Suno integration active`);
     fastify.log.info(`🔐 Advanced token management system active`);
     fastify.log.info(`👥 User extension system active`);

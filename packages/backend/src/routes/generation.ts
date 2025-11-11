@@ -8,6 +8,7 @@ import axios from 'axios';
 import { SunoService } from '../services/sunoService';
 import { AnalyticsService } from '../services/analyticsService';
 import { authMiddleware, quotaMiddleware } from '../middleware/auth';
+import { addGenerationJob, getJobStatus } from '../queue';
 
 export function generationRoutes(sunoService: SunoService, analyticsService: AnalyticsService) {
   return async function(fastify: FastifyInstance) {
@@ -65,25 +66,15 @@ export function generationRoutes(sunoService: SunoService, analyticsService: Ana
           timestamp: new Date()
         });
 
-        // Start generation process
-        const result = await sunoService.generateMusic({
+        // Add generation job to queue (async processing)
+        await addGenerationJob({
+          generationId: generation.id,
+          userId: user.id,
           prompt,
           style: style || 'pop',
           duration: duration || 60,
           quality: quality || 'standard',
-          userId: user.id,
-          generationId: generation.id
-        });
-
-        // Update generation record
-        await fastify.prisma.generation.update({
-          where: { id: generation.id },
-          data: {
-            status: result.status,
-            sunoId: result.sunoId,
-            audioUrl: result.audioUrl,
-            metadata: result.metadata
-          }
+          tier: user.tier || 'FREE'
         });
 
         // Update user usage (skip for system user)
@@ -109,14 +100,14 @@ export function generationRoutes(sunoService: SunoService, analyticsService: Ana
           }
         }
 
+        // Return immediately with pending status
         return {
           success: true,
           data: {
             generationId: generation.id,
-            status: result.status,
-            sunoId: result.sunoId,
-            audioUrl: result.audioUrl,
-            estimatedTime: result.estimatedTime
+            status: 'pending',
+            message: 'Generation queued successfully. You will receive updates via WebSocket.',
+            estimatedTime: 60 // Estimated time in seconds
           }
         };
 
@@ -157,27 +148,47 @@ export function generationRoutes(sunoService: SunoService, analyticsService: Ana
           });
         }
 
-        // Check status with Suno API if still pending or processing
-        if ((generation.status === 'pending' || generation.status === 'processing') && generation.sunoId) {
-          const status = await sunoService.checkGenerationStatus(generation.sunoId);
+        // Check job status from queue if still pending or processing
+        if (generation.status === 'pending' || generation.status === 'processing') {
+          const jobStatus = await getJobStatus(generation.id);
           
-          // Normalize status (pending -> processing for consistency)
-          const normalizedStatus = status.status === 'pending' ? 'processing' : status.status;
-          
-          if (normalizedStatus !== generation.status || status.audioUrl) {
-            await fastify.prisma.generation.update({
-              where: { id: generation.id },
-              data: {
-                status: normalizedStatus,
-                audioUrl: status.audioUrl || generation.audioUrl,
-                metadata: status.metadata ? JSON.stringify(status.metadata) : generation.metadata
+          if (jobStatus) {
+            // Update generation status based on job state
+            if (jobStatus.state === 'completed' && generation.status !== 'COMPLETED') {
+              // Job completed, check if we have audio URL
+              if (!generation.audioUrl) {
+                // Still waiting for audio URL, keep as processing
+                generation.status = 'PROCESSING';
               }
-            });
+            } else if (jobStatus.state === 'failed') {
+              generation.status = 'FAILED';
+            } else if (jobStatus.state === 'active' || jobStatus.state === 'waiting') {
+              generation.status = 'PROCESSING';
+            }
+          }
 
-            generation.status = normalizedStatus;
-            generation.audioUrl = status.audioUrl || generation.audioUrl;
-            if (status.metadata) {
-              generation.metadata = JSON.stringify(status.metadata);
+          // Also check with Suno API if we have sunoId
+          if (generation.sunoId && (generation.status === 'pending' || generation.status === 'processing')) {
+            const status = await sunoService.checkGenerationStatus(generation.sunoId);
+            
+            // Normalize status (pending -> processing for consistency)
+            const normalizedStatus = status.status === 'pending' ? 'processing' : status.status;
+            
+            if (normalizedStatus !== generation.status || status.audioUrl) {
+              await fastify.prisma.generation.update({
+                where: { id: generation.id },
+                data: {
+                  status: normalizedStatus.toUpperCase(),
+                  audioUrl: status.audioUrl || generation.audioUrl,
+                  metadata: status.metadata ? JSON.stringify(status.metadata) : generation.metadata
+                }
+              });
+
+              generation.status = normalizedStatus.toUpperCase();
+              generation.audioUrl = status.audioUrl || generation.audioUrl;
+              if (status.metadata) {
+                generation.metadata = JSON.stringify(status.metadata);
+              }
             }
           }
         }
