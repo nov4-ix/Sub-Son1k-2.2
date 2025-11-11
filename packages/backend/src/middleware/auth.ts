@@ -74,8 +74,8 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
         isAdmin: true,
         alvaeEnabled: true,
         subscriptionStatus: 'active',
-        credits: 999999,
-        monthlyGenerations: 999999,
+        credits: 999999999, // Unlimited for system
+        monthlyGenerations: 999999999, // Unlimited for system
         usedGenerations: 0
       };
       

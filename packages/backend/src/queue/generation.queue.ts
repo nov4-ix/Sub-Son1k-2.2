@@ -23,11 +23,11 @@ const queueOptions: QueueOptions = {
     },
     removeOnComplete: {
       age: 3600, // Keep completed jobs for 1 hour
-      count: 1000, // Keep max 1000 completed jobs
+      count: 10000, // Increased from 1000 to 10000 for scale
     },
     removeOnFail: {
       age: 86400, // Keep failed jobs for 24 hours
-      count: 500, // Keep max 500 failed jobs
+      count: 5000, // Increased from 500 to 5000 for scale
     },
   },
 };

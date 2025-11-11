@@ -159,10 +159,10 @@ export function createGenerationWorker(
     },
     {
       connection: redisConnection,
-      concurrency: parseInt(process.env.GENERATION_CONCURRENCY || '5'), // Process 5 jobs at a time
+      concurrency: parseInt(process.env.GENERATION_CONCURRENCY || '50'), // Increased for scale
       limiter: {
-        max: parseInt(process.env.GENERATION_RATE_LIMIT || '10'),
-        duration: 1000, // 10 jobs per second max
+        max: parseInt(process.env.GENERATION_RATE_LIMIT || '100'), // Increased for scale
+        duration: 1000, // Per second
       },
     }
   );

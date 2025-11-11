@@ -1,11 +1,13 @@
 [build]
 builder = "nixpacks"
+buildCommand = "cd packages/backend && npm install && npm run build"
 
 [deploy]
 startCommand = "cd packages/backend && npm run start"
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
 
 [env]
 NODE_ENV = "production"
@@ -43,8 +45,11 @@ FRONTEND_URL = { type = "string", required = true }
 # Backend Secret (for service-to-service authentication)
 BACKEND_SECRET = { type = "string", required = true }
 
+# Queue Configuration (optimized for scale)
+GENERATION_CONCURRENCY = "50"  # Increased from 5 to 50 for scale
+GENERATION_RATE_LIMIT = "100"  # Increased from 10 to 100 for scale
 # Token Pool Configuration
-MIN_TOKENS = "20"
-MAX_TOKENS = "500"
+MIN_TOKENS = "50"  # Increased for better availability
+MAX_TOKENS = "2000"  # Increased for scale
 ROTATION_INTERVAL = "180000"
 HEALTH_CHECK_INTERVAL = "30000"
