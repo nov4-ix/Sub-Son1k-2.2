@@ -12,7 +12,7 @@ export interface GenerationRequest {
   style: string;
   duration: number;
   quality: string;
-  userId: string;
+  userId?: string | null;
   generationId: string;
 }
 
@@ -36,7 +36,7 @@ export class SunoService {
   async generateMusic(request: GenerationRequest): Promise<GenerationResult> {
     try {
       // Get a healthy token
-      const tokenData = await this.tokenManager.getHealthyToken(request.userId);
+      const tokenData = await this.tokenManager.getHealthyToken(request.userId || undefined);
       
       if (!tokenData) {
         return {

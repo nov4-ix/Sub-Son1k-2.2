@@ -146,9 +146,16 @@ export async function POST(req: NextRequest) {
     console.log('📡 Llamando al nuevo backend Super-Son1k-2.0...')
 
     // ✅ CONECTAR AL NUEVO BACKEND Super-Son1k-2.0
-    const BACKEND_FALLBACK = 'https://backend-jo27sb8hr-son1kvers3s-projects-c3cdfb54.vercel.app'
-    const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || BACKEND_FALLBACK
-    let response = await fetch(`${BACKEND_URL}/api/generation/create`, {
+      const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL
+      if (!BACKEND_URL) {
+        console.error('❌ BACKEND_URL not configured')
+        return NextResponse.json({
+          error: 'Backend URL not configured',
+          message: 'Define BACKEND_URL o NEXT_PUBLIC_BACKEND_URL en las variables de entorno'
+        }, { status: 500 })
+      }
+
+      const response = await fetch(`${BACKEND_URL}/api/generation/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

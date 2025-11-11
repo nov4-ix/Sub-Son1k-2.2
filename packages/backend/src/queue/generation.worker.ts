@@ -17,7 +17,7 @@ const redisConnection = new Redis(process.env.REDIS_URL || process.env.REDIS_HOS
 
 export interface GenerationWorkerData {
   generationId: string;
-  userId: string;
+  userId?: string | null;
   prompt: string;
   style: string;
   duration: number;
@@ -32,157 +32,153 @@ export function createGenerationWorker(
   sunoService: SunoService,
   io: SocketIOServer
 ): Worker<GenerationWorkerData> {
-  const worker = new Worker<GenerationWorkerData>(
-    'generation',
-    async (job: Job<GenerationWorkerData>) => {
-      const { generationId, userId, prompt, style, duration, quality } = job.data;
+    const worker = new Worker<GenerationWorkerData>(
+      'generation',
+      async (job: Job<GenerationWorkerData>) => {
+        const { generationId, userId, prompt, style, duration, quality } = job.data;
 
-      try {
-        // Update progress: 10% - Starting
-        await job.updateProgress(10);
-        await prisma.generation.update({
-          where: { id: generationId },
-          data: { status: 'PROCESSING' }
-        });
+        try {
+          await job.updateProgress(10);
+          await prisma.generation.update({
+            where: { id: generationId },
+            data: { status: 'PROCESSING' }
+          });
 
-        // Emit WebSocket update
-        io.to(`user:${userId}`).emit('generation:progress', {
-          generationId,
-          progress: 10,
-          status: 'processing',
-          message: 'Iniciando generación...'
-        });
-
-        // Update progress: 30% - Calling Suno API
-        await job.updateProgress(30);
-        io.to(`user:${userId}`).emit('generation:progress', {
-          generationId,
-          progress: 30,
-          status: 'processing',
-          message: 'Conectando con Suno API...'
-        });
-
-        // Generate music with Suno
-        const result = await sunoService.generateMusic({
-          prompt,
-          style,
-          duration,
-          quality,
-          userId,
-          generationId
-        });
-
-        // Update progress: 70% - Processing result
-        await job.updateProgress(70);
-        io.to(`user:${userId}`).emit('generation:progress', {
-          generationId,
-          progress: 70,
-          status: 'processing',
-          message: 'Procesando audio...'
-        });
-
-        // Update progress: 90% - Finalizing
-        await job.updateProgress(90);
-        await prisma.generation.update({
-          where: { id: generationId },
-          data: {
-            status: result.status === 'completed' ? 'COMPLETED' : 'PROCESSING',
-            sunoId: result.sunoId,
-            audioUrl: result.audioUrl || undefined,
-            metadata: result.metadata ? JSON.stringify(result.metadata) : undefined
+          if (userId) {
+            io.to(`user:${userId}`).emit('generation:progress', {
+              generationId,
+              progress: 10,
+              status: 'processing',
+              message: 'Iniciando generación...'
+            });
           }
-        });
 
-        io.to(`user:${userId}`).emit('generation:progress', {
-          generationId,
-          progress: 90,
-          status: 'finalizing',
-          message: 'Finalizando...'
-        });
+          await job.updateProgress(30);
+          if (userId) {
+            io.to(`user:${userId}`).emit('generation:progress', {
+              generationId,
+              progress: 30,
+              status: 'processing',
+              message: 'Conectando con Suno API...'
+            });
+          }
 
-        // Update progress: 100% - Complete
-        await job.updateProgress(100);
+          const result = await sunoService.generateMusic({
+            prompt,
+            style,
+            duration,
+            quality,
+            userId,
+            generationId
+          });
 
-        // If audio URL is available, update to completed
-        if (result.audioUrl) {
+          await job.updateProgress(70);
+          if (userId) {
+            io.to(`user:${userId}`).emit('generation:progress', {
+              generationId,
+              progress: 70,
+              status: 'processing',
+              message: 'Procesando audio...'
+            });
+          }
+
+          await job.updateProgress(90);
           await prisma.generation.update({
             where: { id: generationId },
             data: {
-              status: 'COMPLETED',
-              audioUrl: result.audioUrl
+              status: result.status === 'completed' ? 'COMPLETED' : 'PROCESSING',
+              sunoId: result.sunoId,
+              audioUrl: result.audioUrl || undefined,
+              metadata: result.metadata ? JSON.stringify(result.metadata) : undefined
             }
           });
 
-          // ✅ SOLO DECREMENTAR CRÉDITOS DESPUÉS DE ÉXITO CONFIRMADO
-          // Esto asegura que el usuario no pierde créditos si la API falla
-          if (userId !== 'system') {
-            try {
-              await prisma.userTier.upsert({
-                where: { userId },
-                create: {
-                  userId,
-                  usedThisMonth: 1,
-                  usedToday: 1,
-                  monthlyGenerations: 10,
-                  dailyGenerations: 5
-                },
-                update: {
-                  usedThisMonth: { increment: 1 },
-                  usedToday: { increment: 1 }
-                }
-              });
-              console.log(`✅ Créditos decrementados para usuario ${userId} después de éxito confirmado`);
-            } catch (error) {
-              // Log but don't fail - el audio ya está generado
-              console.warn('Could not update user tier after success:', error);
+          if (userId) {
+            io.to(`user:${userId}`).emit('generation:progress', {
+              generationId,
+              progress: 90,
+              status: 'finalizing',
+              message: 'Finalizando...'
+            });
+          }
+
+          await job.updateProgress(100);
+
+          if (result.audioUrl) {
+            await prisma.generation.update({
+              where: { id: generationId },
+              data: {
+                status: 'COMPLETED',
+                audioUrl: result.audioUrl
+              }
+            });
+
+            if (userId && userId !== 'system') {
+              try {
+                await prisma.userTier.upsert({
+                  where: { userId },
+                  create: {
+                    userId,
+                    usedThisMonth: 1,
+                    usedToday: 1,
+                    monthlyGenerations: 10,
+                    dailyGenerations: 5
+                  },
+                  update: {
+                    usedThisMonth: { increment: 1 },
+                    usedToday: { increment: 1 }
+                  }
+                });
+                console.log(`✅ Créditos decrementados para usuario ${userId} después de éxito confirmado`);
+              } catch (tierError) {
+                console.warn('Could not update user tier after success:', tierError);
+              }
             }
           }
-        }
 
-        // Emit completion
-        io.to(`user:${userId}`).emit('generation:complete', {
-          generationId,
-          audioUrl: result.audioUrl,
-          status: 'completed',
-          message: '¡Música generada exitosamente!'
-        });
-
-        return {
-          success: true,
-          generationId,
-          audioUrl: result.audioUrl,
-          sunoId: result.sunoId
-        };
-
-      } catch (error: any) {
-        console.error(`Generation job ${generationId} failed:`, error);
-
-        // Update DB with error
-        await prisma.generation.update({
-          where: { id: generationId },
-          data: {
-            status: 'FAILED',
-            metadata: JSON.stringify({
-              error: error.message,
-              stack: error.stack,
-              attempts: job.attemptsMade
-            })
+          if (userId) {
+            io.to(`user:${userId}`).emit('generation:complete', {
+              generationId,
+              audioUrl: result.audioUrl,
+              status: 'completed',
+              message: '¡Música generada exitosamente!'
+            });
           }
-        });
 
-        // Emit error
-        io.to(`user:${userId}`).emit('generation:error', {
-          generationId,
-          error: error.message || 'Error desconocido',
-          status: 'failed',
-          message: 'Error al generar música. Inténtalo de nuevo.'
-        });
+          return {
+            success: true,
+            generationId,
+            audioUrl: result.audioUrl,
+            sunoId: result.sunoId
+          };
+        } catch (error: any) {
+          console.error(`Generation job ${generationId} failed:`, error);
 
-        // Re-throw for BullMQ retry mechanism
-        throw error;
-      }
-    },
-    {
+          await prisma.generation.update({
+            where: { id: generationId },
+            data: {
+              status: 'FAILED',
+              metadata: JSON.stringify({
+                error: error.message,
+                stack: error.stack,
+                attempts: job.attemptsMade
+              })
+            }
+          });
+
+          if (userId) {
+            io.to(`user:${userId}`).emit('generation:error', {
+              generationId,
+              error: error.message || 'Error desconocido',
+              status: 'failed',
+              message: 'Error al generar música. Inténtalo de nuevo.'
+            });
+          }
+
+          throw error;
+        }
+      },
+      {
       connection: redisConnection,
       concurrency: parseInt(process.env.GENERATION_CONCURRENCY || '50'), // Increased for scale
       limiter: {

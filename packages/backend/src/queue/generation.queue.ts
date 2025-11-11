@@ -58,7 +58,7 @@ export function getJobPriority(tier: string): number {
  */
 export interface GenerationJobData {
   generationId: string;
-  userId: string;
+  userId?: string | null;
   prompt: string;
   style?: string;
   duration?: number;
@@ -71,7 +71,7 @@ export async function addGenerationJob(data: GenerationJobData) {
     'generate',
     {
       generationId: data.generationId,
-      userId: data.userId,
+      userId: data.userId || null,
       prompt: data.prompt,
       style: data.style || 'pop',
       duration: data.duration || 60,
