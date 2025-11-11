@@ -1,7 +1,12 @@
 import './globals.css';
 import './globals-mobile.css';
 import type { Metadata, Viewport } from 'next';
-import ClientAuthProvider from '../components/ClientAuthProvider';
+import dynamic from 'next/dynamic';
+
+// Lazy load ClientAuthProvider for code splitting
+const ClientAuthProvider = dynamic(() => import('../components/ClientAuthProvider'), {
+  ssr: true, // Keep SSR for auth
+});
 
 export const metadata: Metadata = {
   title: 'Son1kvers3 - The Generator',

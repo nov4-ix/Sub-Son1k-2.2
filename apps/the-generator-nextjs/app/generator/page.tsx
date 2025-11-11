@@ -1,10 +1,16 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react'
+import dynamic from 'next/dynamic'
 import { Music, Sparkles, Play, Download, Loader2, Mic2, User, Users, Shuffle, Wand2, Settings, BookOpen, Heart, Zap, Palette, Pause, Volume2, VolumeX, SkipForward, SkipBack } from 'lucide-react'
 import { useGeneratorStore } from '../../lib/store/generatorStore'
-import { Knob } from '../../lib/components/ui/Knob'
 import { useGenerationProgress } from '../../lib/hooks/useGenerationProgress'
+
+// Lazy load heavy components with code splitting
+const Knob = dynamic(() => import('../../lib/components/ui/Knob').then(mod => ({ default: mod.Knob })), {
+  loading: () => <div className="w-16 h-16 bg-gray-700/50 rounded-full animate-pulse" />,
+  ssr: false
+})
 
 // Note: Lazy loading removed as components are not used in this page
 // TwoTrackPlayer and motion are not imported here

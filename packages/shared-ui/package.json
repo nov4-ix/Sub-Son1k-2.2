@@ -9,10 +9,12 @@
   },
   "dependencies": {
     "@super-son1k/shared-types": "workspace:*",
-    "@super-son1k/shared-hooks": "workspace:*"
+    "@super-son1k/shared-hooks": "workspace:*",
+    "react-window": "^1.8.10"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
+    "@types/react-window": "^1.8.8",
     "react": "^18.2.0",
     "typescript": "^5.3.3"
   },
