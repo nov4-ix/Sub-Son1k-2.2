@@ -4,6 +4,7 @@
 export { TrackItem } from './TrackItem';
 export type { TrackItemProps } from './TrackItem';
 export { MusicList } from './MusicList';
+export { ErrorBoundary } from './ErrorBoundary';
 export type { MusicListProps } from './MusicList';
 
 

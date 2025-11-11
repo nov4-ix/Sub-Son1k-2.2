@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabaseStorage } from '../lib/api/supabase-storage';
 import type { CoverResult, GeneratorData } from '@super-son1k/shared-types';
+import { useCoverProgress } from './useCoverProgress';
 
 export function useSunoCover() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -9,6 +10,9 @@ export function useSunoCover() {
   const [result, setResult] = useState<CoverResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generatorData, setGeneratorData] = useState<GeneratorData | null>(null);
+  
+  // WebSocket integration for real-time cover progress
+  const { progress: wsProgress, isConnected: wsConnected } = useCoverProgress(taskId);
 
   // Verificar datos de The Generator al cargar
   useEffect(() => {
@@ -28,6 +32,38 @@ export function useSunoCover() {
 
     checkForGeneratorData();
   }, []);
+
+  const sendResultToGenerator = (data: any) => {
+    const resultData = {
+      coverUrl: data.audio_url || data.result?.audio_url,
+      originalAudio: generatorData?.generatedAudio,
+      prompt: generatorData?.style || 'Generated cover',
+      taskId: taskId,
+      timestamp: Date.now(),
+      source: 'ghost-studio'
+    };
+    
+    localStorage.setItem('son1kverse_ghost_result', JSON.stringify(resultData));
+  };
+
+  // Update result from WebSocket progress
+  useEffect(() => {
+    if (wsProgress) {
+      if (wsProgress.status === 'completed' && wsProgress.imageUrl) {
+        setResult({
+          status: 'completed',
+          taskId: wsProgress.taskId,
+          audio_url: wsProgress.imageUrl
+        });
+        setIsGenerating(false);
+        // Enviar resultado de vuelta a The Generator
+        sendResultToGenerator({ audio_url: wsProgress.imageUrl });
+      } else if (wsProgress.status === 'failed') {
+        setError(wsProgress.error || 'Error generando cover');
+        setIsGenerating(false);
+      }
+    }
+  }, [wsProgress, generatorData, taskId]);
 
   const generateCover = async (audioFile: File, prompt: string) => {
     setIsGenerating(true);
@@ -88,8 +124,12 @@ export function useSunoCover() {
       
       setTaskId(newTaskId);
       
-      // 3. Iniciar polling para obtener resultado
-      pollForResult(newTaskId);
+      // 3. Use WebSocket for real-time updates (fallback to polling if not connected)
+      // WebSocket updates will be handled by useCoverProgress hook via useEffect
+      // Only poll if WebSocket is not available
+      if (!wsConnected) {
+        pollForResult(newTaskId);
+      }
       
     } catch (err: any) {
       console.error('Error generating cover:', err);
@@ -150,19 +190,6 @@ export function useSunoCover() {
         setIsGenerating(false);
       }
     }, 5000); // Poll every 5 seconds
-  };
-
-  const sendResultToGenerator = (data: any) => {
-    const resultData = {
-      coverUrl: data.audio_url || data.result?.audio_url,
-      originalAudio: generatorData?.generatedAudio,
-      prompt: generatorData?.style || 'Generated cover',
-      taskId: taskId,
-      timestamp: Date.now(),
-      source: 'ghost-studio'
-    };
-    
-    localStorage.setItem('son1kverse_ghost_result', JSON.stringify(resultData));
   };
 
   const reset = () => {
