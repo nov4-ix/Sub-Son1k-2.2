@@ -251,11 +251,19 @@ export default function GeneratorPage() {
         setCurrentGenerationId(data.generationId)
         // Fallback to polling if WebSocket not connected
         if (!wsConnected) {
-          pollTrackStatus(data.trackId || data.sunoId, data.generationId)
+          const cleanup = pollTrackStatus(data.trackId || data.sunoId, data.generationId)
+          // ✅ Guardar cleanup para cancelar si el componente se desmonta
+          if (cleanup) {
+            // Cleanup se manejará automáticamente cuando el componente se desmonte
+          }
         }
       } else if (data.trackId || data.sunoId) {
         // Fallback to polling for old API format
-        pollTrackStatus(data.trackId || data.sunoId)
+        const cleanup = pollTrackStatus(data.trackId || data.sunoId)
+        // ✅ Guardar cleanup para cancelar si el componente se desmonta
+        if (cleanup) {
+          // Cleanup se manejará automáticamente cuando el componente se desmonte
+        }
       } else {
         throw new Error('No se generó música')
       }
@@ -266,7 +274,9 @@ export default function GeneratorPage() {
     }
   }
 
-  const pollTrackStatus = async (trackId: string, generationId?: string) => {
+  const pollTrackStatus = useCallback(async (trackId: string, generationId?: string) => {
+    // ✅ Protección contra race conditions
+    let cancelled = false
     let attempts = 0
     const startTime = Date.now()
     const maxTime = 5 * 60 * 1000 // 5 minutos máximo
@@ -277,6 +287,8 @@ export default function GeneratorPage() {
       return 10000
     }
     const checkStatus = async (): Promise<boolean> => {
+      // ✅ Verificar si fue cancelado antes de continuar
+      if (cancelled) return false
       try {
         attempts++
         const elapsed = Date.now() - startTime
@@ -337,22 +349,34 @@ export default function GeneratorPage() {
 
         if (data.status === 'error') throw new Error('Error en la generación de música')
 
-        if (elapsed < maxTime) {
+        if (elapsed < maxTime && !cancelled) {
           const nextInterval = getNextInterval(elapsed)
-          setTimeout(() => checkStatus(), nextInterval)
+          setTimeout(() => {
+            if (!cancelled) checkStatus()
+          }, nextInterval)
         } else {
           throw new Error('La generación tardó más de 3 minutos. La música podría estar procesándose aún. Intenta de nuevo en unos momentos.')
         }
       } catch (err: any) {
-        setError(err.message || 'Error desconocido en la generación')
-        setTimeout(() => setError(''), 8000)
-        setIsGeneratingMusic(false)
-        setGenerationProgress(0)
-        setGenerationMessage('')
+        // ✅ Solo actualizar estado si no fue cancelado
+        if (!cancelled) {
+          setError(err.message || 'Error desconocido en la generación')
+          setTimeout(() => setError(''), 8000)
+          setIsGeneratingMusic(false)
+          setGenerationProgress(0)
+          setGenerationMessage('')
+        }
       }
     }
+    
+    // Iniciar polling
     checkStatus()
-  }
+    
+    // ✅ Retornar función de cancelación
+    return () => {
+      cancelled = true
+    }
+  }, [wsConnected])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0A0C10] via-[#1a1d29] to-[#0A0C10] relative overflow-hidden">

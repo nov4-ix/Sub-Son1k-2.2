@@ -58,7 +58,7 @@ export function getJobPriority(tier: string): number {
  */
 export interface GenerationJobData {
   generationId: string;
-  userId?: string | null;
+  userId: string; // Required - all generations must be associated with a user
   prompt: string;
   style?: string;
   duration?: number;
@@ -67,11 +67,15 @@ export interface GenerationJobData {
 }
 
 export async function addGenerationJob(data: GenerationJobData) {
+  if (!data.userId) {
+    throw new Error('userId is required for all generations');
+  }
+
   return await generationQueue.add(
     'generate',
     {
       generationId: data.generationId,
-      userId: data.userId || null,
+      userId: data.userId,
       prompt: data.prompt,
       style: data.style || 'pop',
       duration: data.duration || 60,

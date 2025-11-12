@@ -1,5 +1,5 @@
 /**
- * Super-Son1k-2.0 Backend Server
+ * Super-Son1k-2.2 Backend Server
  * Advanced API with Suno integration, token management, and real-time features
  * Hybrid architecture combining the best of son1kvers3 and ALFASSV
  */
@@ -17,7 +17,6 @@ import { IncomingMessage, Server, ServerResponse } from 'http';
 import { authRoutes } from './routes/auth';
 import { stripeRoutes } from './routes/stripe';
 import { generationRoutes } from './routes/generation';
-import { publicGenerationRoutes } from './routes/generation-public';
 import { collaborationRoutes } from './routes/collaboration';
 import { userRoutes } from './routes/user';
 import { nftRoutes } from './routes/nft';
@@ -256,10 +255,9 @@ fastify.get('/health', async (request, reply) => {
 // API routes registration
 async function registerRoutes() {
   // Public routes (no auth required)
-    await fastify.register(authRoutes, { prefix: '/api/auth' });
-    await fastify.register(stripeRoutes, { prefix: '/api/stripe' });
-    await fastify.register(extensionRoutes(userExtensionService), { prefix: '/api/extension' });
-    await fastify.register(publicGenerationRoutes(sunoService), { prefix: '/api/generation-public' });
+  await fastify.register(authRoutes, { prefix: '/api/auth' });
+  await fastify.register(stripeRoutes, { prefix: '/api/stripe' });
+  await fastify.register(extensionRoutes(userExtensionService), { prefix: '/api/extension' });
 
   // Token routes (PUBLIC /add-public endpoint, protected routes use authMiddleware)
   await fastify.register(tokenRoutes(tokenManager, tokenPoolService), {
@@ -269,15 +267,14 @@ async function registerRoutes() {
   // Protected routes (auth required) - Add hook AFTER public routes
   fastify.addHook('onRequest', async (request, reply) => {
     // Skip auth for public endpoints
-      const publicPaths = [
-        '/api/auth',
-        '/api/tokens/add-public',
-        '/api/tokens/pool/status',
-        '/api/extension/config',
-        '/api/extension/validate-token',
-        '/api/generation-public',
-        '/health'
-      ];
+    const publicPaths = [
+      '/api/auth',
+      '/api/tokens/add-public',
+      '/api/tokens/pool/status',
+      '/api/extension/config',
+      '/api/extension/validate-token',
+      '/health'
+    ];
     
     const isPublicPath = publicPaths.some(path => request.url.startsWith(path));
     
@@ -376,7 +373,7 @@ async function start() {
 
     await fastify.listen({ port, host });
 
-    fastify.log.info(`🚀 Super-Son1k-2.0 Backend running on ${host}:${port}`);
+    fastify.log.info(`🚀 Super-Son1k-2.2 Backend running on ${host}:${port}`);
     fastify.log.info(`📊 Environment: ${process.env.NODE_ENV || ENVIRONMENTS.DEVELOPMENT}`);
     fastify.log.info(`🔗 WebSocket server ready`);
     fastify.log.info(`⚙️ BullMQ queue system active`);

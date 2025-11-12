@@ -12,7 +12,7 @@ export interface GenerationRequest {
   style: string;
   duration: number;
   quality: string;
-  userId?: string | null;
+  userId: string; // Required - all generations must be associated with a user
   generationId: string;
 }
 
@@ -35,8 +35,16 @@ export class SunoService {
    */
   async generateMusic(request: GenerationRequest): Promise<GenerationResult> {
     try {
+      // Validate userId is provided (required for all generations)
+      if (!request.userId) {
+        return {
+          status: 'failed',
+          error: 'userId is required for all generations'
+        };
+      }
+
       // Get a healthy token
-      const tokenData = await this.tokenManager.getHealthyToken(request.userId || undefined);
+      const tokenData = await this.tokenManager.getHealthyToken(request.userId);
       
       if (!tokenData) {
         return {
