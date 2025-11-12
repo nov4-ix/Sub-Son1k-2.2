@@ -1,4 +1,7 @@
-# 🚀 GUÍA DE DEPLOY - Super-Son1k-2.1 Beta
+# 🚀 GUÍA DE DEPLOY - Super-Son1k-2.2 Beta
+
+**Versión:** 2.2.0  
+**Fecha:** $(Get-Date -Format "yyyy-MM-dd")
 
 ## ✅ VERIFICACIÓN PRE-DEPLOY
 
@@ -10,10 +13,36 @@
 - ✅ Extensión recolectando tokens automáticamente
 - ✅ Sin placeholders - todo es generación real
 - ✅ Configuración documentada
+- ✅ Scripts de deploy local para pruebas
+- ✅ Guía completa de pruebas locales y reales
 
 ---
 
 ## 🔧 CONFIGURACIÓN RÁPIDA
+
+### 0. Pruebas Locales (Recomendado antes de deploy)
+
+Para probar localmente antes de hacer deploy a producción:
+
+**Windows:**
+```powershell
+# Verificar entorno
+.\scripts\verify-local-env.ps1
+
+# Iniciar servicios
+.\scripts\deploy-local.ps1
+```
+
+**Linux/Mac:**
+```bash
+# Verificar entorno
+./scripts/verify-local-env.sh
+
+# Iniciar servicios
+./scripts/deploy-local.sh
+```
+
+Ver guía completa: [GUIA_PRUEBAS_LOCALES_REALES_2.2.md](./GUIA_PRUEBAS_LOCALES_REALES_2.2.md)
 
 ### 1. Generar BACKEND_SECRET
 
