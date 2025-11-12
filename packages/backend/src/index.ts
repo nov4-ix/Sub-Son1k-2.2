@@ -33,7 +33,7 @@ import { errorHandler } from './middleware/errorHandler';
 
 // Import services
 import { TokenManager } from './services/tokenManager';
-import { SunoService } from './services/sunoService';
+import { MusicGenerationService } from './services/musicGenerationService';
 import { CollaborationService } from './services/collaborationService';
 import { AnalyticsService } from './services/analyticsService';
 import { UserExtensionService } from './services/userExtensionService';
@@ -73,7 +73,7 @@ const prisma = new PrismaClient({
 
 // Initialize services with all integrations
 const tokenManager = new TokenManager(prisma);
-const sunoService = new SunoService(tokenManager);
+const musicGenerationService = new MusicGenerationService(tokenManager);
 const collaborationService = new CollaborationService(prisma, tokenManager);
 const analyticsService = new AnalyticsService(prisma);
 const userExtensionService = new UserExtensionService(prisma, tokenManager);
@@ -86,7 +86,7 @@ fastify.decorate('tokenManager', tokenManager);
 fastify.decorate('collaborationService', collaborationService);
 fastify.decorate('userExtensionService', userExtensionService);
 fastify.decorate('tokenPoolService', tokenPoolService);
-fastify.decorate('sunoService', sunoService);
+fastify.decorate('musicGenerationService', musicGenerationService);
 fastify.decorate('cacheService', cacheService);
 
 // Setup Socket.IO for real-time features
@@ -217,7 +217,7 @@ fastify.get('/health', async (request, reply) => {
     // Check all services
     const [tokenHealth, sunoHealth, collaborationHealth, analyticsHealth] = await Promise.all([
       tokenManager.healthCheck(),
-      sunoService.healthCheck(),
+      musicGenerationService.healthCheck(),
       collaborationService.healthCheck(),
       analyticsService.healthCheck()
     ]);
@@ -225,7 +225,7 @@ fastify.get('/health', async (request, reply) => {
     const services = {
       database: 'healthy',
       tokenManager: tokenHealth ? 'healthy' : 'degraded',
-      sunoService: sunoHealth ? 'healthy' : 'degraded',
+      musicGenerationService: sunoHealth ? 'healthy' : 'degraded',
       collaborationService: collaborationHealth ? 'healthy' : 'degraded',
       analyticsService: analyticsHealth ? 'healthy' : 'degraded'
     };
@@ -284,8 +284,8 @@ async function registerRoutes() {
     }
   });
 
-  // Generation routes with Suno integration
-  await fastify.register(generationRoutes(sunoService, analyticsService), {
+  // Generation routes with AI generation integration
+  await fastify.register(generationRoutes(musicGenerationService, analyticsService), {
     prefix: '/api/generation'
   });
 
@@ -332,7 +332,7 @@ async function gracefulShutdown(signal: string) {
   // Close all services
   await Promise.all([
     tokenManager.close(),
-    sunoService.close(),
+    musicGenerationService.close(),
     collaborationService.close(),
     analyticsService.close(),
     tokenPoolService.close()
@@ -364,7 +364,7 @@ async function start() {
     setupWebSocket(io as any, collaborationService, analyticsService);
 
     // Initialize BullMQ worker for generation queue
-    generationWorker = createGenerationWorker(prisma, sunoService, io as any);
+    generationWorker = createGenerationWorker(prisma, musicGenerationService, io as any);
     fastify.log.info('Generation worker initialized');
 
     // Start HTTP server

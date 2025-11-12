@@ -19,7 +19,6 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true
   },
-  define: {
-    'import.meta.env.BACKEND_URL': JSON.stringify(process.env.BACKEND_URL)
-  }
+  // Environment variables are automatically available via import.meta.env
+  // VITE_ prefix is required for client-side variables
 })

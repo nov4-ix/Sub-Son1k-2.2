@@ -1,6 +1,7 @@
 // apps/ghost-studio/src/hooks/useSunoCover.ts
 import { useState, useEffect } from 'react';
 import { supabaseStorage } from '../lib/api/supabase-storage';
+import { translateToEnglish } from '../lib/translate';
 import type { CoverResult, GeneratorData } from '@super-son1k/shared-types';
 import { useCoverProgress } from './useCoverProgress';
 
@@ -76,53 +77,52 @@ export function useSunoCover() {
         throw new Error('Error uploading audio: Invalid response');
       }
 
-      // 2. Llamar al backend propio (que usa pool de tokens)
-      const BACKEND_FALLBACK = 'https://backend-jo27sb8hr-son1kvers3s-projects-c3cdfb54.vercel.app'
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || BACKEND_FALLBACK
-      
-      // Intentar primero con backend propio
-      let response
-      try {
-        response = await fetch(`${BACKEND_URL}/api/generation/cover`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_BACKEND_SECRET || 'dev-token'}`
-          },
-          body: JSON.stringify({
-            audio_url: uploadUrl,
-            prompt: prompt,
-            style: 'cover',
-            customMode: true
-          })
-        })
-        
-        // Si backend no tiene endpoint de cover, usar directamente
-        if (!response.ok && response.status === 404) {
-          throw new Error('Cover endpoint not available')
-        }
-      } catch (error) {
-        // ❌ SEGURIDAD: NUNCA usar tokens API directamente desde el frontend
-        // Si el backend no está disponible, mostrar error claro al usuario
-        console.error('Backend no disponible:', error)
-        throw new Error(
-          'El servicio de generación no está disponible en este momento. ' +
-          'Por favor, contacta al administrador o intenta más tarde.'
-        )
-      }
+      // 2. Translate prompt to English before sending
+      const translatedPrompt = await translateToEnglish(prompt);
 
+      // 3. Llamar al backend propio (que usa pool de tokens)
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://son1kverse-backend.railway.app'
+      
+      // Llamar al backend para generación de cover
+      const response = await fetch(`${BACKEND_URL}/api/generation/cover`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_BACKEND_SECRET || 'dev-token'}`
+        },
+        body: JSON.stringify({
+          audio_url: uploadUrl,
+          prompt: translatedPrompt,
+          style: 'cover',
+          customMode: true
+        })
+      })
+      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: { message: 'Error del servidor' } }))
+        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`)
       }
 
       const data = await response.json();
-      const newTaskId = data.data?.taskId || data.taskId;
+      
+      if (!data.success) {
+        throw new Error(data.error?.message || 'Error en la generación');
+      }
+      
+      // Backend ahora devuelve generationId y taskId
+      const newTaskId = data.data?.taskId || data.data?.generationTaskId || data.taskId;
+      const generationId = data.data?.generationId;
       
       if (!newTaskId) {
-        throw new Error('No task ID received from Suno Cover API');
+        throw new Error('No task ID received from generation API');
       }
       
       setTaskId(newTaskId);
+      
+      // Guardar generationId si está disponible (para consultas futuras)
+      if (generationId) {
+        localStorage.setItem(`ghost_cover_${newTaskId}`, generationId);
+      }
       
       // 3. Use WebSocket for real-time updates (fallback to polling if not connected)
       // WebSocket updates will be handled by useCoverProgress hook via useEffect
@@ -146,9 +146,10 @@ export function useSunoCover() {
       attempts++;
       
       try {
-        // ✅ Usar backend para polling en lugar de token directo
+        // ✅ Usar backend para polling (endpoint /cover/status/:taskId)
         const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://son1kverse-backend.railway.app'
-        const response = await fetch(`${BACKEND_URL}/api/generation/status/${taskId}`, {
+        
+        const response = await fetch(`${BACKEND_URL}/api/generation/cover/status/${taskId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -157,28 +158,39 @@ export function useSunoCover() {
         });
         
         if (!response.ok) {
+          if (response.status === 404) {
+            // Generación no encontrada, continuar polling
+            if (attempts >= maxAttempts) {
+              throw new Error('Cover generation timeout - please try again');
+            }
+            return; // Continuar polling
+          }
           throw new Error(`Status check failed: ${response.status}`);
         }
         
         const data = await response.json();
         
-        // ai.imgkits.com devuelve { running: true/false, audio_url, ... }
-        if (data.running === false && data.audio_url) {
+        if (!data.success) {
+          throw new Error(data.error?.message || 'Error checking status');
+        }
+        
+        // Backend devuelve formato estándar
+        if (data.data?.audioUrl && (data.data?.status === 'COMPLETED' || data.data?.status === 'completed')) {
           setResult({
             status: 'completed',
             taskId: taskId,
-            audio_url: data.audio_url
+            audio_url: data.data.audioUrl
           });
           setIsGenerating(false);
           clearInterval(pollInterval);
           
           // Enviar resultado de vuelta a The Generator
-          sendResultToGenerator(data);
+          sendResultToGenerator({ audio_url: data.data.audioUrl });
           
-        } else if (data.running === true) {
+        } else if (data.data?.status === 'PROCESSING' || data.data?.status === 'PENDING' || data.data?.status === 'processing' || data.data?.status === 'pending') {
           // Aún procesando, continuar polling
-        } else if (data.error || (data.status === 'failed' || data.status === 'error')) {
-          throw new Error(data.error || 'Cover generation failed');
+        } else if (data.data?.status === 'FAILED' || data.data?.status === 'failed') {
+          throw new Error(data.error?.message || 'Cover generation failed');
         } else if (attempts >= maxAttempts) {
           throw new Error('Cover generation timeout - please try again');
         }

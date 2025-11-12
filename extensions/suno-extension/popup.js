@@ -3,6 +3,8 @@
 class PopupManager {
   constructor() {
     this.tokens = []
+    this.notifications = new (window.NotificationManager || NotificationManager)()
+    this.validator = new (window.TokenValidator || TokenValidator)()
     this.initializePopup()
   }
 
@@ -87,10 +89,10 @@ class PopupManager {
       })
 
       if (response.success) {
-        this.showSuccess('Tokens synced successfully!')
+        this.notifications.success('Tokens sincronizados exitosamente')
         await this.loadTokens() // Refresh the list
       } else {
-        this.showError(`Sync failed: ${response.error}`)
+        this.notifications.error(`Error de sincronización: ${response.error || 'Error desconocido'}`)
       }
     } catch (error) {
       console.error('Error syncing tokens:', error)

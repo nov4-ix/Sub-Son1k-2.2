@@ -48,7 +48,7 @@
               <span>Entrar al Códex</span>
               <span class="arrow">→</span>
             </button>
-            <button class="cta-button secondary" onclick="window.open('https://the-generator.son1kvers3.com', '_blank')">
+            <button class="cta-button secondary" onclick="window.open('https://the-generator-vercel.vercel.app', '_blank')">
               <span>The Generator</span>
               <span class="arrow">→</span>
             </button>
@@ -313,7 +313,7 @@
             </button>
             
             <!-- The Generator Button (Main Power) -->
-            <button class="console-btn power-btn" onclick="window.open('https://the-generator.son1kvers3.com', '_blank')" title="The Generator">
+            <button class="console-btn power-btn" onclick="window.open('https://the-generator-vercel.vercel.app', '_blank')" title="The Generator">
               <div class="btn-glow"></div>
             </button>
             
@@ -417,7 +417,7 @@
 
     // Google OAuth Sign In
     function handleGoogleSignIn() {
-      const backendUrl = 'http://localhost:3001';
+      const backendUrl = 'https://son1kverse-backend.railway.app';
       
       // Redirect to backend OAuth endpoint
       window.open(`${backendUrl}/api/auth/google`, 'SignIn', 'width=500,height=600');
@@ -506,11 +506,11 @@
     // Open tool with authentication check
     function openTool(toolName) {
       const toolUrls = {
-        'ghost-studio': 'https://the-generator.son1kvers3.com',
-        'archivo': 'http://localhost:3003',
-        'generator': 'https://the-generator.son1kvers3.com',
-        'nova-post': 'http://localhost:3005',
-        'clone-station': 'http://localhost:3006'
+        'ghost-studio': 'https://ghost-studio-vercel.vercel.app',
+        'archivo': 'https://archivo-vercel.vercel.app',
+        'generator': 'https://the-generator-vercel.vercel.app',
+        'nova-post': 'https://nova-post-pilot-vercel.vercel.app',
+        'clone-station': 'https://clone-station-vercel.vercel.app'
       };
 
       const requiresAuth = ['generator', 'nova-post']; // Tools that need authentication

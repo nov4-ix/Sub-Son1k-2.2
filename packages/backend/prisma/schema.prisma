@@ -128,7 +128,7 @@ model Generation {
   duration    Int      @default(60)
   quality     String   @default("standard")
   status      String   @default("pending")
-  sunoId      String?
+  generationTaskId String?
   audioUrl    String?
   metadata    String   @default("{}")
   createdAt   DateTime @default(now())

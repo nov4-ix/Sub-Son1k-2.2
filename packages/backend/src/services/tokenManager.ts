@@ -134,7 +134,7 @@ export class TokenManager extends EventEmitter {
       }
 
       // Validate token with Suno API
-      const isValid = await this.validateTokenWithSuno(token);
+      const isValid = await this.validateTokenWithGenerationAPI(token);
 
       // Create token record
       const tokenRecord = await this.prisma.token.create({
@@ -230,12 +230,13 @@ export class TokenManager extends EventEmitter {
   }
 
   /**
-   * Validate token with Suno API
+   * Validate token with generation API
    */
-  async validateTokenWithSuno(token: string): Promise<boolean> {
+  async validateTokenWithGenerationAPI(token: string): Promise<boolean> {
     try {
-      // Validar token haciendo una petición de prueba a ai.imgkits.com
-      const response = await axios.post('https://ai.imgkits.com/suno/generate', {
+      // Validar token haciendo una petición de prueba a la API de generación
+      const apiUrl = process.env.GENERATION_API_URL || process.env.SUNO_API_URL || 'https://ai.imgkits.com/suno';
+      const response = await axios.post(`${apiUrl}/generate`, {
         prompt: 'test',
         lyrics: '',
         title: '',
@@ -428,7 +429,7 @@ export class TokenManager extends EventEmitter {
       let healthyCount = 0;
 
       for (const token of tokens) {
-        const isHealthy = await this.validateTokenWithSuno(await this.getOriginalToken(token.id) || '');
+        const isHealthy = await this.validateTokenWithGenerationAPI(await this.getOriginalToken(token.id) || '');
 
         if (isHealthy) {
           healthyCount++;

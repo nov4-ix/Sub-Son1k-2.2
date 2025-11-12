@@ -195,6 +195,87 @@ export class MusicGenerationService {
   }
 
   /**
+   * Check cover generation status
+   */
+  async checkCoverStatus(generationTaskId: string): Promise<GenerationResult> {
+    try {
+      // Get a healthy token
+      const tokenData = await this.tokenManager.getHealthyToken();
+      
+      if (!tokenData) {
+        return {
+          status: 'failed',
+          error: 'No available tokens'
+        };
+      }
+
+      // Polling endpoint para verificar estado de cover
+      const pollingUrl = env.GENERATION_POLLING_URL || env.SUNO_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
+      
+      const response = await axios.get(`${pollingUrl}/get_mj_status/${generationTaskId}`, {
+        timeout: 10000,
+        headers: {
+          'authorization': `Bearer ${tokenData.token}`,
+          'Content-Type': 'application/json',
+          'channel': 'node-api',
+          'origin': 'https://www.livepolls.app',
+          'referer': 'https://www.livepolls.app/'
+        }
+      });
+
+      if (response.status === 200 && response.data) {
+        const data = response.data;
+        
+        // Update token usage
+        await this.tokenManager.updateTokenUsage(tokenData.tokenId, {
+          endpoint: `/get_mj_status/${generationTaskId}`,
+          method: 'GET',
+          statusCode: response.status,
+          responseTime: data.responseTime || 0,
+          timestamp: new Date()
+        });
+
+        // API devuelve { running: true/false, audio_url, ... }
+        if (data.running === false && data.audio_url) {
+          return {
+            status: 'completed',
+            generationTaskId,
+            audioUrl: data.audio_url,
+            metadata: {
+              duration: data.duration,
+              createdAt: new Date()
+            }
+          };
+        } else if (data.running === true) {
+          return {
+            status: 'processing',
+            generationTaskId,
+            estimatedTime: 60
+          };
+        } else {
+          return {
+            status: 'pending',
+            generationTaskId,
+            estimatedTime: 60
+          };
+        }
+      } else {
+        return {
+          status: 'failed',
+          error: 'Invalid response from generation API'
+        };
+      }
+
+    } catch (error) {
+      console.error('Cover status check error:', error);
+      return {
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
    * Create axios instance for generation API
    */
   private createAxiosInstance(token: string): AxiosInstance {

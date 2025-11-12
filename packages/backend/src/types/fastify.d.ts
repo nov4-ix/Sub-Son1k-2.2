@@ -13,6 +13,6 @@ declare module 'fastify' {
     collaborationService: any;
     userExtensionService: any;
     tokenPoolService: any;
-    sunoService: any;
+    musicGenerationService: any;
   }
 }

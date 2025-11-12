@@ -25,14 +25,14 @@ export function tokenRoutes(tokenManager: TokenManager, tokenPoolService: TokenP
           });
         }
 
-        // Validate token with Suno API first
-        const isValid = await tokenManager.validateTokenWithSuno(token);
+        // Validate token with generation API first
+        const isValid = await tokenManager.validateTokenWithGenerationAPI(token);
         if (!isValid) {
           return reply.code(400).send({
             success: false,
             error: {
               code: 'INVALID_TOKEN',
-              message: 'Token validation failed with Suno API'
+              message: 'Token validation failed with generation API'
             }
           });
         }
@@ -280,8 +280,8 @@ export function tokenRoutes(tokenManager: TokenManager, tokenPoolService: TokenP
           });
         }
 
-        // Validate with Suno API
-        const isValid = await tokenManager.validateTokenWithSuno(token);
+        // Validate with generation API
+        const isValid = await tokenManager.validateTokenWithGenerationAPI(token);
 
         return {
           success: true,

@@ -1,154 +1,112 @@
-import React, { useRef, useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+'use client';
+
+import WaveSurfer from 'wavesurfer.js';
+import { useEffect, useRef, useState } from 'react';
+import { Play, Pause } from 'lucide-react';
 
 interface WaveformProps {
-  audioBuffer: AudioBuffer | null
-  currentTime: number
-  duration: number
-  onSeek: (time: number) => void
-  className?: string
+  url?: string;
+  onPlay?: () => void;
+  onPause?: () => void;
+  isPlaying?: boolean;
 }
 
-export const Waveform: React.FC<WaveformProps> = ({
-  audioBuffer,
-  currentTime,
-  duration,
-  onSeek,
-  className
-}) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [isDragging, setIsDragging] = useState(false)
+export default function Waveform({ url, onPlay, onPause, isPlaying = false }: WaveformProps) {
+  const waveformRef = useRef<HTMLDivElement>(null);
+  const [wavesurfer, setWavesurfer] = useState<WaveSurfer | null>(null);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
 
   useEffect(() => {
-    if (!audioBuffer || !canvasRef.current) return
+    if (!waveformRef.current || !url) return;
 
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    const ws = WaveSurfer.create({
+      container: waveformRef.current,
+      waveColor: '#15333B',
+      progressColor: '#40FDAE',
+      cursorColor: '#B858FF',
+      barWidth: 3,
+      barRadius: 3,
+      cursorWidth: 2,
+      height: 100,
+      barGap: 2,
+      backend: 'WebAudio',
+      responsive: true,
+      normalize: true,
+    });
 
-    // Set canvas size
-    const rect = canvas.getBoundingClientRect()
-    canvas.width = rect.width * window.devicePixelRatio
-    canvas.height = rect.height * window.devicePixelRatio
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
+    ws.load(url);
 
-    // Draw waveform
-    drawWaveform(ctx, canvas.width, canvas.height)
-  }, [audioBuffer])
+    ws.on('ready', () => {
+      setDuration(ws.getDuration());
+    });
 
-  const drawWaveform = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
-    if (!audioBuffer) return
+    ws.on('timeupdate', (time) => {
+      setCurrentTime(time);
+    });
 
-    const channelData = audioBuffer.getChannelData(0)
-    const samplesPerPixel = channelData.length / width
-    const centerY = height / 2
+    ws.on('play', () => {
+      onPlay?.();
+    });
 
-    // Clear canvas
-    ctx.fillStyle = 'rgba(10, 12, 16, 0.8)'
-    ctx.fillRect(0, 0, width, height)
+    ws.on('pause', () => {
+      onPause?.();
+    });
 
-    // Draw waveform
-    ctx.strokeStyle = '#00FFE7'
-    ctx.lineWidth = 2
-    ctx.beginPath()
+    setWavesurfer(ws);
 
-    for (let x = 0; x < width; x++) {
-      const start = Math.floor(x * samplesPerPixel)
-      const end = Math.floor((x + 1) * samplesPerPixel)
-      
-      let max = 0
-      let min = 0
-      
-      for (let i = start; i < end; i++) {
-        const sample = channelData[i]
-        if (sample > max) max = sample
-        if (sample < min) min = sample
-      }
-      
-      const y1 = centerY - (max * centerY)
-      const y2 = centerY - (min * centerY)
-      
-      if (x === 0) {
-        ctx.moveTo(x, y1)
+    return () => {
+      ws.destroy();
+    };
+  }, [url, onPlay, onPause]);
+
+  useEffect(() => {
+    if (!wavesurfer) return;
+    
+    if (isPlaying) {
+      wavesurfer.play();
       } else {
-        ctx.lineTo(x, y1)
-      }
-      ctx.lineTo(x, y2)
+      wavesurfer.pause();
     }
+  }, [isPlaying, wavesurfer]);
 
-    ctx.stroke()
+  const togglePlayback = () => {
+    if (!wavesurfer) return;
+    wavesurfer.playPause();
+  };
 
-    // Draw progress
-    if (duration > 0) {
-      const progressX = (currentTime / duration) * width
-      
-      // Progress background
-      ctx.fillStyle = 'rgba(0, 255, 231, 0.2)'
-      ctx.fillRect(0, 0, progressX, height)
-      
-      // Progress line
-      ctx.strokeStyle = '#B84DFF'
-      ctx.lineWidth = 3
-      ctx.beginPath()
-      ctx.moveTo(progressX, 0)
-      ctx.lineTo(progressX, height)
-      ctx.stroke()
-    }
-  }
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    handleSeek(e)
-  }
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      handleSeek(e)
-    }
-  }
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  const handleSeek = (e: React.MouseEvent) => {
-    if (!canvasRef.current || !duration) return
-
-    const canvas = canvasRef.current
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const percentage = x / rect.width
-    const newTime = percentage * duration
-
-    onSeek(Math.max(0, Math.min(duration, newTime)))
-  }
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
-    <div className={className}>
-      <div className="waveform-container relative">
-        {audioBuffer ? (
-          <canvas
-            ref={canvasRef}
-            className="w-full h-full cursor-pointer"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="text-white/50 text-sm">No audio loaded</div>
+    <div className="glass-panel rounded-xl p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-mint">Waveform</h3>
+        <div className="flex items-center gap-4">
+          <div className="text-sm font-mono text-lavender">
+            {formatTime(currentTime)} / {formatTime(duration)}
           </div>
-        )}
-        
-        {/* Waveform overlay effects */}
-        {audioBuffer && (
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan/50 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-magenta/50 to-transparent" />
+          {wavesurfer && (
+            <button
+              onClick={togglePlayback}
+              className="btn-neon mint p-2 rounded-lg"
+            >
+              {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div ref={waveformRef} className="w-full" />
+
+      {!url && (
+        <div className="flex items-center justify-center h-24">
+          <p className="text-gray-500 text-sm">Sin audio para mostrar</p>
           </div>
         )}
       </div>
-    </div>
-  )
+  );
 }

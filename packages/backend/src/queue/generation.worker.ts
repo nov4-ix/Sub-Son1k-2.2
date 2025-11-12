@@ -7,7 +7,7 @@
 import { Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
 import { PrismaClient } from '@prisma/client';
-import { SunoService } from '../services/sunoService';
+import { MusicGenerationService } from '../services/musicGenerationService';
 import { Server as SocketIOServer } from 'socket.io';
 
 // Redis connection for worker
@@ -30,7 +30,7 @@ export interface GenerationWorkerData {
  */
 export function createGenerationWorker(
   prisma: PrismaClient,
-  sunoService: SunoService,
+  musicGenerationService: MusicGenerationService,
   io: SocketIOServer
 ): Worker<GenerationWorkerData> {
   const worker = new Worker<GenerationWorkerData>(
@@ -59,17 +59,17 @@ export function createGenerationWorker(
           message: 'Iniciando generación...'
         });
 
-        // Update progress: 30% - Calling Suno API
+        // Update progress: 30% - Calling generation API
         await job.updateProgress(30);
         io.to(`user:${userId}`).emit('generation:progress', {
           generationId,
           progress: 30,
           status: 'processing',
-          message: 'Conectando con Suno API...'
+          message: 'Conectando con motor de generación IA...'
         });
 
-        // Generate music with Suno
-        const result = await sunoService.generateMusic({
+        // Generate music with AI generation API
+        const result = await musicGenerationService.generateMusic({
           prompt,
           style,
           duration,
@@ -93,7 +93,7 @@ export function createGenerationWorker(
           where: { id: generationId },
           data: {
             status: result.status === 'completed' ? 'COMPLETED' : 'PROCESSING',
-            sunoId: result.sunoId,
+            generationTaskId: result.generationTaskId,
             audioUrl: result.audioUrl || undefined,
             metadata: result.metadata ? JSON.stringify(result.metadata) : undefined
           }
@@ -158,7 +158,7 @@ export function createGenerationWorker(
           success: true,
           generationId,
           audioUrl: result.audioUrl,
-          sunoId: result.sunoId
+          generationTaskId: result.generationTaskId
         };
 
       } catch (error: any) {
