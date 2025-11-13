@@ -58,10 +58,10 @@ Error: Git author son1kvers3@protonmail.com must have access
 to the team Son1kVers3's projects on Vercel to create deployments.
 ```
 
-**Causa:** El autor del git (`son1kvers3@protonmail.com`) no tiene acceso al equipo `Son1kVers3` en Vercel.
+**Causa:** El autor del git no tiene acceso al equipo en Vercel.
 
 **Solución:**
-- Opción A: Agregar el usuario `son1kvers3@protonmail.com` al equipo `Son1kVers3` en Vercel Dashboard
+- Opción A: Agregar el usuario al equipo en Vercel Dashboard
 - Opción B: Cambiar el scope de Vercel CLI al usuario personal
 - Opción C: Configurar el git author para usar el email del equipo
 
@@ -124,8 +124,8 @@ vercel --scope son1kvers3s-projects-c3cdfb54
 #### **Opción C: Configurar Git Author**
 ```bash
 # Configurar git author para el equipo
-git config user.email "email-del-equipo@ejemplo.com"
-git config user.name "Nombre del Equipo"
+git config user.email "email-del-equipo@son1kvers3.com"
+git config user.name "Son1kVers3 Team"
 ```
 
 ---
