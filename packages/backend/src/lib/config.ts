@@ -28,6 +28,10 @@ const envSchema = z.object({
   SUNO_POLLING_URL: z.string().url().optional(),
   SUNO_API_KEY: z.string().min(1, 'Suno API key requerida').optional(),
   
+  // Generation API (alias para Suno API - usar estos nombres genéricos)
+  GENERATION_API_URL: z.string().url().optional(),
+  GENERATION_POLLING_URL: z.string().url().optional(),
+  
   // Frontend (opcional en desarrollo)
   FRONTEND_URL: z.string().min(1, 'Frontend URL requerida').optional(),
   
@@ -74,6 +78,8 @@ function validateEnv() {
       SUNO_API_URL: process.env.SUNO_API_URL,
       SUNO_POLLING_URL: process.env.SUNO_POLLING_URL,
       SUNO_API_KEY: process.env.SUNO_API_KEY,
+      GENERATION_API_URL: process.env.GENERATION_API_URL,
+      GENERATION_POLLING_URL: process.env.GENERATION_POLLING_URL,
       FRONTEND_URL: process.env.FRONTEND_URL,
       BACKEND_SECRET: process.env.BACKEND_SECRET,
       GENERATION_CONCURRENCY: process.env.GENERATION_CONCURRENCY,
@@ -95,7 +101,7 @@ function validateEnv() {
     
     if (!result.success) {
       // Solo mostrar warnings, no fallar (permite deploy)
-      const missingVars = result.error.errors
+      const missingVars = result.error.issues
         .filter(e => !e.path.includes('SUPABASE') && !e.path.includes('SUNO_API_KEY') && !e.path.includes('FRONTEND_URL') && !e.path.includes('BACKEND_SECRET'))
         .map(e => `${e.path.join('.')}: ${e.message}`)
         .join('\n');
@@ -118,6 +124,8 @@ function validateEnv() {
         SUNO_API_URL: process.env.SUNO_API_URL,
         SUNO_POLLING_URL: process.env.SUNO_POLLING_URL,
         SUNO_API_KEY: process.env.SUNO_API_KEY,
+        GENERATION_API_URL: process.env.GENERATION_API_URL,
+        GENERATION_POLLING_URL: process.env.GENERATION_POLLING_URL,
         FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
         BACKEND_SECRET: process.env.BACKEND_SECRET || 'dev-backend-secret-min-32-chars-for-development',
         GENERATION_CONCURRENCY: process.env.GENERATION_CONCURRENCY,

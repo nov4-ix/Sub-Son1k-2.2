@@ -18,7 +18,7 @@
       "@/*": ["./src/*"],
       "@super-son1k/shared-utils": ["../../packages/shared-utils/src"]
     },
-    "types": ["vite/client"]
+    "types": ["vite/client", "node"]
   },
   "include": [
     "src/**/*.ts",

@@ -141,8 +141,6 @@ function translateCommonTerms(text: string): string {
     'sutil': 'subtle',
     'moderado': 'moderate',
     'moderada': 'moderate',
-    'agresivo': 'aggressive',
-    'agresiva': 'aggressive',
     'extremo': 'extreme',
     'extrema': 'extreme',
     'vintage': 'vintage',

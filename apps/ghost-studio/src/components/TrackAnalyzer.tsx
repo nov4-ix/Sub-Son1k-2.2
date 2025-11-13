@@ -98,7 +98,7 @@ export default function TrackAnalyzer({
         </button>
       </div>
 
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {isEnabled && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}

@@ -9,7 +9,7 @@ type ToastType = 'success' | 'error' | 'info' | 'warning' | 'loading';
 interface ToastOptions {
   duration?: number;
   position?: 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
-  icon?: string | React.ReactNode;
+  icon?: string | any; // Use 'any' to avoid React dependency in shared utils
 }
 
 let toastInstance: any = null;

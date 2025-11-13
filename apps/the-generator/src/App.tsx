@@ -24,6 +24,8 @@ import { useAuth } from './providers/AuthProvider'
 import { AuthModal } from './components/AuthModal'
 import { translateToEnglish } from './lib/translate'
 import GenerationHistory from './components/GenerationHistory'
+import { config } from './lib/config/env'
+import { useAudioStore } from './store/audioStore'
 
 const generationSchema = z.object({
   prompt: z.string().min(1, 'Prompt is required').max(1000, 'Prompt too long'),
@@ -61,10 +63,12 @@ export function TheGenerator() {
   const { user, session, isAuthenticated, isLoading, signOut, showAuthModal, setShowAuthModal } = useAuth()
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedTrack, setGeneratedTrack] = useState<MusicTrack | null>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
+  const [pollingInterval, setPollingInterval] = useState<ReturnType<typeof setInterval> | null>(null)
+  
+  // Use global audio store to prevent multiple audios playing
+  const { currentTrackId, isPlaying, play, pause } = useAudioStore()
 
   const {
     register,
@@ -101,7 +105,7 @@ export function TheGenerator() {
       const translatedPrompt = await translateToEnglish(data.prompt)
       
       // Call backend API with Supabase session token
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://son1kverse-backend.railway.app'
+      const backendUrl = config.backendUrl
       const response = await fetch(`${backendUrl}/api/generation/create`, {
         method: 'POST',
         headers: {
@@ -168,7 +172,7 @@ export function TheGenerator() {
 
     const interval = setInterval(async () => {
       try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://son1kverse-backend.railway.app';
+        const backendUrl = config.backendUrl;
         const response = await fetch(`${backendUrl}/api/generation/${generationId}/status`, {
           headers: {
             'Authorization': `Bearer ${session?.access_token || ''}`
@@ -178,20 +182,22 @@ export function TheGenerator() {
         if (response.ok) {
           const data = await response.json();
           if (data.data) {
+            // Normalizar estado para comparación
+            const statusUpper = data.data.status?.toUpperCase();
             const updatedTrack: MusicTrack = {
               ...generatedTrack!,
-              status: data.data.status,
+              status: data.data.status as any, // Aceptar tanto mayúsculas como minúsculas
               audioUrl: data.data.audioUrl || generatedTrack?.audioUrl || '',
             };
 
             setGeneratedTrack(updatedTrack);
 
             // Si está completado, detener polling
-            if (data.data.status === 'COMPLETED' || data.data.status === 'FAILED') {
+            if (statusUpper === 'COMPLETED' || statusUpper === 'FAILED') {
               clearInterval(interval);
               setPollingInterval(null);
               
-              if (data.data.status === 'COMPLETED') {
+              if (statusUpper === 'COMPLETED') {
                 toast.success('Track generation completed!');
               }
             }
@@ -213,10 +219,32 @@ export function TheGenerator() {
     };
   }, [pollingInterval]);
 
-  const handlePlay = () => {
-    setIsPlaying(!isPlaying)
-    toast.success(isPlaying ? 'Paused' : 'Playing')
+  const handlePlay = async () => {
+    if (!generatedTrack?.audioUrl) {
+      toast.error('Audio not ready yet')
+      return
+    }
+
+    const trackId = generatedTrack.id || generatedTrack.generationId || 'current'
+    
+    // Si es la misma canción, toggle play/pause
+    if (currentTrackId === trackId && isPlaying) {
+      pause()
+      toast.success('Paused')
+    } else {
+      // Reproducir nueva canción (el store detendrá cualquier audio anterior)
+      await play(trackId, generatedTrack.audioUrl)
+      toast.success('Playing')
+    }
   }
+  
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      const { cleanup } = useAudioStore.getState()
+      cleanup()
+    }
+  }, [])
 
   const handleDownload = () => {
     if (generatedTrack?.audioUrl) {
@@ -516,8 +544,10 @@ export function TheGenerator() {
                     whileTap={{ scale: 0.95 }}
                     onClick={handlePlay}
                     className="bg-[#00FFE7] text-black p-2 rounded-lg hover:bg-[#00FFE7]/90 transition-colors"
+                    aria-label={isPlaying && currentTrackId === (generatedTrack.id || generatedTrack.generationId || 'current') ? `Pause ${generatedTrack.prompt}` : `Play ${generatedTrack.prompt}`}
+                    aria-pressed={isPlaying && currentTrackId === (generatedTrack.id || generatedTrack.generationId || 'current')}
                   >
-                    {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+                    {isPlaying && currentTrackId === (generatedTrack.id || generatedTrack.generationId || 'current') ? <Pause size={20} /> : <Play size={20} />}
                   </motion.button>
 
                   <motion.button
@@ -525,6 +555,7 @@ export function TheGenerator() {
                     whileTap={{ scale: 0.95 }}
                     onClick={handleDownload}
                     className="bg-[#333] text-white p-2 rounded-lg hover:bg-[#444] transition-colors"
+                    aria-label={`Download ${generatedTrack.prompt}`}
                   >
                     <Download size={20} />
                   </motion.button>

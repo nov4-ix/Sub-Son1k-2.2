@@ -43,7 +43,7 @@ export class AnalyticsService {
         data: {
           userId: event.userId,
           event: event.event,
-          properties: event.properties,
+          properties: JSON.stringify(event.properties), // Convert to JSON string
           timestamp: event.timestamp
         }
       });

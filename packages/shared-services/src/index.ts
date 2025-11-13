@@ -2,7 +2,8 @@
  * Shared Services for Super-Son1k platform
  * Centralized API logic
  */
-export { MusicService, getMusicService, createMusicService } from './musicService';
+export { getMusicService, createMusicService, MusicService } from './musicService';
+export type { MusicService as IMusicService } from './musicService';
 export { ApiService } from './apiService';
 export type { ApiServiceConfig } from './apiService';
 // Re-export MusicServiceConfig from shared-types for convenience

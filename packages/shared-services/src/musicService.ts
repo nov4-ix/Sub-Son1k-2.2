@@ -11,7 +11,7 @@ import type {
   MusicServiceConfig 
 } from '@super-son1k/shared-types';
 
-class MusicService {
+export class MusicService {
   private config: MusicServiceConfig;
 
   constructor(config?: Partial<MusicServiceConfig>) {
@@ -110,7 +110,7 @@ class MusicService {
       }
 
       const result: ApiResponse<GenerationResult> = await response.json();
-      return result.data || { status: 'unknown' };
+      return result.data || { status: 'pending' as any };
     } catch (error) {
       console.error('MusicService.getTrackStatus error:', error);
       throw error;

@@ -28,7 +28,7 @@ export interface MusicTrack {
   taskId?: string;
 }
 
-export type TrackStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'error';
+export type TrackStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'error' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'ERROR';
 
 export interface GenerationRequest {
   prompt: string;

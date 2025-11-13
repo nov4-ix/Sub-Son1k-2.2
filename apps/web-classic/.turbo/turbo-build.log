@@ -1,5 +1,13 @@
 
-> @super-son1k/web-classic@1.0.0 build /Users/nov4-ix/Desktop/Super-Son1k-2.0/apps/web-classic
+> @super-son1k/web-classic@1.0.0 build C:\Users\qrrom\Desktop\Super-Son1k-2.1-main-feature-super-son1k-2.2-merge\Sub-Son1k-2.2\apps\web-classic
 > tsc && vite build
 
 [36mvite v7.1.12 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 5 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                 [39m[1m[2m20.47 kB[22m[1m[22m[2m │ gzip: 5.04 kB[22m
+[2mdist/[22m[35massets/index-anOdRgm-.css  [39m[1m[2m21.72 kB[22m[1m[22m[2m │ gzip: 4.67 kB[22m
+[2mdist/[22m[36massets/index-B2ab-K9J.js   [39m[1m[2m18.65 kB[22m[1m[22m[2m │ gzip: 7.30 kB[22m[2m │ map: 59.63 kB[22m
+[32m✓ built in 11.47s[39m

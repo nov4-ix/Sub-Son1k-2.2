@@ -81,7 +81,7 @@ export function useSunoCover() {
       const translatedPrompt = await translateToEnglish(prompt);
 
       // 3. Llamar al backend propio (que usa pool de tokens)
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://son1kverse-backend.railway.app'
+      const { backendUrl: BACKEND_URL } = await import('../lib/config/env')
       
       // Llamar al backend para generación de cover
       const response = await fetch(`${BACKEND_URL}/api/generation/cover`, {
@@ -146,8 +146,8 @@ export function useSunoCover() {
       attempts++;
       
       try {
-        // ✅ Usar backend para polling (endpoint /cover/status/:taskId)
-        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://son1kverse-backend.railway.app'
+          // ✅ Usar backend para polling (endpoint /cover/status/:taskId)
+          const { backendUrl: BACKEND_URL } = await import('../lib/config/env')
         
         const response = await fetch(`${BACKEND_URL}/api/generation/cover/status/${taskId}`, {
           method: 'GET',

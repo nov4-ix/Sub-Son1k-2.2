@@ -26,13 +26,13 @@ export function useCoverProgress(taskId: string | null) {
       reconnection: true,
     },
     {
-      onCoverProgress: (data) => {
+      onCoverProgress: (data: any) => {
         if (data.taskId === taskId) {
           setProgress({
             taskId: data.taskId,
             progress: data.progress || 0,
             status: data.status as any,
-            message: data.message,
+            message: data.message || undefined,
           });
         }
       },

@@ -147,7 +147,7 @@ export class TokenManager extends EventEmitter {
           usageCount: 0,
           rateLimit: this.getRateLimitForTier(tier),
           tier,
-          metadata,
+          metadata: typeof metadata === 'string' ? metadata : JSON.stringify(metadata || {}), // Convert to JSON string if needed
           expiresAt: tier === 'FREE' ? new Date(Date.now() + 24 * 60 * 60 * 1000) : undefined // 24h for free
         }
       });

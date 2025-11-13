@@ -395,6 +395,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.75.0
         version: 2.76.1
+      '@super-son1k/shared-types':
+        specifier: file:../../packages/shared-types
+        version: file:packages/shared-types
       '@super-son1k/shared-ui':
         specifier: file:../../packages/shared-ui
         version: file:packages/shared-ui(lucide-react@0.545.0)(react-dom@18.3.1)(react@18.3.1)

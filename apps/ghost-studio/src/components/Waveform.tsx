@@ -30,10 +30,8 @@ export default function Waveform({ url, onPlay, onPause, isPlaying = false }: Wa
       cursorWidth: 2,
       height: 100,
       barGap: 2,
-      backend: 'WebAudio',
-      responsive: true,
       normalize: true,
-    });
+    } as any); // Type assertion to avoid responsive option error
 
     ws.load(url);
 

@@ -40,10 +40,9 @@ export const VirtualizedMusicList: React.FC<VirtualizedMusicListProps> = ({
     if (!track) return null;
 
     return (
-      <div style={style}>
+      <div style={style} onClick={() => onTrackClick?.(track)}>
         <TrackItem
           track={track}
-          onPlay={onTrackClick}
           variant={variant}
         />
       </div>

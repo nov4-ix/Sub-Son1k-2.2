@@ -16,17 +16,27 @@ export const useAudioEngine = () => {
     setAudioUrl,
     setIsPlaying,
     setCurrentTime,
-    setDuration
+    setDuration,
+    setIsLoading,
+    setError,
+    setAudioContext
   } = useStudioStore()
 
   const [isRecording, setIsRecording] = useState(false)
   const [volume, setVolume] = useState(1)
 
-  // Load audio file
+  // Load audio file with error handling and loading state
   const loadAudioFile = useCallback(async (file: File) => {
     try {
+      setIsLoading(true)
+      setError(null)
+      
       const arrayBuffer = await file.arrayBuffer()
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      
+      // Store audio context for cleanup
+      setAudioContext(audioContext)
+      
       const buffer = await audioContext.decodeAudioData(arrayBuffer)
       
       setAudioBuffer(buffer)
@@ -36,12 +46,19 @@ export const useAudioEngine = () => {
       const url = URL.createObjectURL(file)
       setAudioUrl(url)
       
+      setIsLoading(false)
       return buffer
     } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to load audio file'
+      
       console.error('Error loading audio file:', error)
+      setError(errorMessage)
+      setIsLoading(false)
       throw error
     }
-  }, [setAudioBuffer, setAudioUrl, setDuration])
+  }, [setAudioBuffer, setAudioUrl, setDuration, setIsLoading, setError, setAudioContext])
 
   // Start recording
   const startRecording = useCallback(async () => {

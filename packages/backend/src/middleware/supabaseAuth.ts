@@ -75,15 +75,19 @@ export async function supabaseAuthMiddleware(request: FastifyRequest, reply: Fas
     // Get or create user in our database
     let user = await supabaseAuth.getUserWithTier(supabaseUser.id)
 
-    if (!user) {
-      // Create user from Supabase data
+    if (!user || !user.userTier) {
+      // Create user from Supabase data (this will ensure userTier exists)
       user = await supabaseAuth.createUserFromSupabase(supabaseUser)
     }
 
-    if (!user.userTier) {
-      // Create user tier if it doesn't exist
-      await supabaseAuth.createUserTier(user.id, user.tier)
-      user = await supabaseAuth.getUserWithTier(user.id)
+    if (!user || !user.userTier) {
+      return reply.code(500).send({
+        success: false,
+        error: {
+          code: 'USER_SETUP_FAILED',
+          message: 'Failed to setup user account'
+        }
+      })
     }
 
     // Check if user is active
@@ -104,6 +108,11 @@ export async function supabaseAuthMiddleware(request: FastifyRequest, reply: Fas
       }
     }
 
+    // Parse features from comma-separated string
+    const features = user.userTier.features 
+      ? user.userTier.features.split(',').filter(f => f.trim().length > 0)
+      : []
+
     // Attach user to request with enhanced information
     ;(request as any).user = {
       id: user.id,
@@ -112,14 +121,14 @@ export async function supabaseAuthMiddleware(request: FastifyRequest, reply: Fas
       tier: user.tier,
       isAdmin: user.isAdmin,
       alvaeEnabled: user.alvaeEnabled,
-      subscriptionStatus: user.userTier?.subscriptionStatus,
-      monthlyGenerations: user.userTier?.monthlyGenerations || 0,
-      usedThisMonth: user.userTier?.usedThisMonth || 0,
-      dailyGenerations: user.userTier?.dailyGenerations || 0,
-      usedToday: user.userTier?.usedToday || 0,
-      maxDuration: user.userTier?.maxDuration || 60,
-      quality: user.userTier?.quality || 'standard',
-      features: user.userTier?.features || []
+      subscriptionStatus: user.userTier.subscriptionStatus,
+      monthlyGenerations: user.userTier.monthlyGenerations || 0,
+      usedThisMonth: user.userTier.usedThisMonth || 0,
+      dailyGenerations: user.userTier.dailyGenerations || 0,
+      usedToday: user.userTier.usedToday || 0,
+      maxDuration: user.userTier.maxDuration || 60,
+      quality: user.userTier.quality || 'standard',
+      features
     }
 
   } catch (error) {
@@ -151,11 +160,17 @@ export async function optionalSupabaseAuthMiddleware(request: FastifyRequest, re
         if (supabaseUser) {
           let user = await supabaseAuth.getUserWithTier(supabaseUser.id)
 
-          if (!user) {
+          if (!user || !user.userTier) {
+            // Create user from Supabase data (this will ensure userTier exists)
             user = await supabaseAuth.createUserFromSupabase(supabaseUser)
           }
 
           if (user && user.userTier) {
+            // Parse features from comma-separated string
+            const features = user.userTier.features 
+              ? user.userTier.features.split(',').filter(f => f.trim().length > 0)
+              : []
+
             ;(request as any).user = {
               id: user.id,
               email: user.email,
@@ -170,7 +185,7 @@ export async function optionalSupabaseAuthMiddleware(request: FastifyRequest, re
               usedToday: user.userTier.usedToday,
               maxDuration: user.userTier.maxDuration,
               quality: user.userTier.quality,
-              features: user.userTier.features
+              features
             }
           }
         }

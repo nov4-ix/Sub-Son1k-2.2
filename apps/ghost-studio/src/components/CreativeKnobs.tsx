@@ -75,25 +75,25 @@ export default function CreativeKnobs({ values, onChange }: CreativeKnobsProps) 
   }) => {
     const [isDragging, setIsDragging] = useState(false);
 
-    const handleMouseDown = (e: React.MouseEvent) => {
+    const updateValue = (e: React.MouseEvent<HTMLDivElement>) => {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      onChange(Math.round(percentage));
+    };
+
+    const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
       setIsDragging(true);
       updateValue(e);
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
       if (!isDragging) return;
       updateValue(e);
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
-    };
-
-    const updateValue = (e: MouseEvent | React.MouseEvent) => {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-      onChange(Math.round(percentage));
     };
 
     return (

@@ -12,6 +12,37 @@
 
 **Super-Son1k-2.2** is a revolutionary AI music creation platform that combines the best features from multiple projects into a single, powerful ecosystem. Built with a hybrid architecture that maximizes performance, security, and scalability.
 
+### ⚡ Quick Start
+
+1. **Install dependencies:**
+   ```bash
+   pnpm install
+   ```
+
+2. **Setup environment variables:**
+   ```bash
+   # Copy example files
+   cp apps/the-generator/.env.example apps/the-generator/.env.local
+   cp apps/ghost-studio/.env.example apps/ghost-studio/.env.local
+   
+   # Fill in your values
+   ```
+
+3. **Run development servers:**
+   ```bash
+   # Backend
+   cd packages/backend
+   pnpm dev
+   
+   # Frontend (in another terminal)
+   cd apps/the-generator
+   pnpm dev
+   ```
+
+### 📋 Pre-Launch Checklist
+
+See [PRE_LAUNCH_CHECKLIST.md](./PRE_LAUNCH_CHECKLIST.md) for complete checklist.
+
 ### ✨ Key Features
 
 - 🎵 **Complete Music Suite** - 7 specialized applications for music creation

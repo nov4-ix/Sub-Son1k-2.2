@@ -177,7 +177,7 @@ export function PixelChatAdvanced({ currentApp = 'web-classic', isOpen, onClose 
         <>
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ height: 'calc(100% - 140px)' }}>
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
               {messages.map((message) => (
                 <motion.div
                   key={message.id}

@@ -44,9 +44,12 @@ export class CollaborationService {
         description: data.description,
         isPublic: data.isPublic,
         ownerId: data.ownerId,
-        members: [data.ownerId]
+        members: JSON.stringify([data.ownerId]) // Convert array to JSON string
       }
     });
+
+    // Parse members from JSON string
+    const members = room.members ? JSON.parse(room.members) : [];
 
     return {
       id: room.id,
@@ -54,7 +57,7 @@ export class CollaborationService {
       description: room.description,
       isPublic: room.isPublic,
       ownerId: room.ownerId,
-      members: room.members,
+      members,
       createdAt: room.createdAt,
       updatedAt: room.updatedAt
     };
@@ -76,7 +79,10 @@ export class CollaborationService {
         };
       }
 
-      if (!room.isPublic && room.ownerId !== userId && !room.members.includes(userId)) {
+      // Parse members from JSON string
+      const members: string[] = room.members ? JSON.parse(room.members) : [];
+
+      if (!room.isPublic && room.ownerId !== userId && !members.includes(userId)) {
         return {
           success: false,
           message: 'Room is private and you are not invited'
@@ -84,11 +90,12 @@ export class CollaborationService {
       }
 
       // Add user to members if not already a member
-      if (!room.members.includes(userId)) {
+      if (!members.includes(userId)) {
+        members.push(userId);
         await this.prisma.collaborationRoom.update({
           where: { id: roomId },
           data: {
-            members: [...room.members, userId]
+            members: JSON.stringify(members) // Convert array to JSON string
           }
         });
       }
@@ -101,7 +108,7 @@ export class CollaborationService {
           description: room.description,
           isPublic: room.isPublic,
           ownerId: room.ownerId,
-          members: [...room.members, userId],
+          members,
           createdAt: room.createdAt,
           updatedAt: room.updatedAt
         }
@@ -129,13 +136,16 @@ export class CollaborationService {
         return false;
       }
 
+      // Parse members from JSON string
+      const members: string[] = room.members ? JSON.parse(room.members) : [];
+
       // Remove user from members
-      const updatedMembers = room.members.filter(memberId => memberId !== userId);
+      const updatedMembers = members.filter(memberId => memberId !== userId);
 
       await this.prisma.collaborationRoom.update({
         where: { id: roomId },
         data: {
-          members: updatedMembers
+          members: JSON.stringify(updatedMembers) // Convert array to JSON string
         }
       });
 
@@ -160,8 +170,11 @@ export class CollaborationService {
         return null;
       }
 
+      // Parse members from JSON string
+      const members: string[] = room.members ? JSON.parse(room.members) : [];
+
       // Check if user has access
-      if (!room.isPublic && room.ownerId !== userId && !room.members.includes(userId)) {
+      if (!room.isPublic && room.ownerId !== userId && !members.includes(userId)) {
         return null;
       }
 
@@ -171,7 +184,7 @@ export class CollaborationService {
         description: room.description,
         isPublic: room.isPublic,
         ownerId: room.ownerId,
-        members: room.members,
+        members,
         createdAt: room.createdAt,
         updatedAt: room.updatedAt
       };
@@ -189,39 +202,46 @@ export class CollaborationService {
     try {
       const skip = (options.page - 1) * options.limit;
 
-      const [rooms, total] = await Promise.all([
-        this.prisma.collaborationRoom.findMany({
-          where: {
-            OR: [
-              { ownerId: userId },
-              { members: { has: userId } }
-            ]
-          },
-          skip,
-          take: options.limit,
-          orderBy: { updatedAt: 'desc' }
-        }),
-        this.prisma.collaborationRoom.count({
-          where: {
-            OR: [
-              { ownerId: userId },
-              { members: { has: userId } }
-            ]
-          }
-        })
-      ]);
+      // Get all rooms and filter by userId in members (since members is a JSON string)
+      const allRooms = await this.prisma.collaborationRoom.findMany({
+        skip,
+        take: options.limit * 2, // Get more to filter
+        orderBy: { updatedAt: 'desc' }
+      });
+
+      // Filter rooms where user is owner or member
+      const filteredRooms = allRooms.filter(room => {
+        if (room.ownerId === userId) return true;
+        try {
+          const members: string[] = room.members ? JSON.parse(room.members) : [];
+          return members.includes(userId);
+        } catch {
+          return false;
+        }
+      }).slice(0, options.limit);
+
+      const total = await this.prisma.collaborationRoom.count({
+        where: {
+          OR: [
+            { ownerId: userId }
+          ]
+        }
+      });
 
       return {
-        rooms: rooms.map(room => ({
-          id: room.id,
-          name: room.name,
-          description: room.description,
-          isPublic: room.isPublic,
-          ownerId: room.ownerId,
-          members: room.members,
-          createdAt: room.createdAt,
-          updatedAt: room.updatedAt
-        })),
+        rooms: filteredRooms.map(room => {
+          const members: string[] = room.members ? JSON.parse(room.members) : [];
+          return {
+            id: room.id,
+            name: room.name,
+            description: room.description,
+            isPublic: room.isPublic,
+            ownerId: room.ownerId,
+            members,
+            createdAt: room.createdAt,
+            updatedAt: room.updatedAt
+          };
+        }),
         pagination: {
           page: options.page,
           limit: options.limit,
@@ -267,13 +287,16 @@ export class CollaborationService {
         }
       });
 
+      // Parse members from JSON string
+      const members: string[] = updatedRoom.members ? JSON.parse(updatedRoom.members) : [];
+
       return {
         id: updatedRoom.id,
         name: updatedRoom.name,
         description: updatedRoom.description,
         isPublic: updatedRoom.isPublic,
         ownerId: updatedRoom.ownerId,
-        members: updatedRoom.members,
+        members,
         createdAt: updatedRoom.createdAt,
         updatedAt: updatedRoom.updatedAt
       };
@@ -344,17 +367,21 @@ export class CollaborationService {
       ]);
 
       return {
-        rooms: rooms.map(room => ({
-          id: room.id,
-          name: room.name,
-          description: room.description,
-          isPublic: room.isPublic,
-          ownerId: room.ownerId,
-          owner: room.owner,
-          memberCount: room.members.length,
-          createdAt: room.createdAt,
-          updatedAt: room.updatedAt
-        })),
+        rooms: rooms.map(room => {
+          // Parse members from JSON string
+          const members: string[] = room.members ? JSON.parse(room.members) : [];
+          return {
+            id: room.id,
+            name: room.name,
+            description: room.description,
+            isPublic: room.isPublic,
+            ownerId: room.ownerId,
+            owner: room.owner,
+            memberCount: members.length,
+            createdAt: room.createdAt,
+            updatedAt: room.updatedAt
+          };
+        }),
         pagination: {
           page: options.page,
           limit: options.limit,

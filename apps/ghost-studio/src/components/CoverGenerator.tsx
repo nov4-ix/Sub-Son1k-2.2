@@ -39,7 +39,7 @@ export function CoverGenerator() {
         <div className="bg-cyan/10 border border-cyan/30 rounded-xl p-4">
           <h3 className="text-cyan font-semibold mb-2">📝 Datos de The Generator</h3>
           <div className="text-white/70 text-sm space-y-1">
-            <p><strong>Letra:</strong> {generatorData.lyrics?.substring(0, 100)}...</p>
+            <p><strong>Letra:</strong> {typeof generatorData.lyrics === 'string' ? generatorData.lyrics.substring(0, 100) : 'N/A'}...</p>
             <p><strong>Estilo:</strong> {generatorData.style}</p>
             {generatorData.generatedAudio && (
               <p><strong>Audio generado:</strong> Disponible</p>
