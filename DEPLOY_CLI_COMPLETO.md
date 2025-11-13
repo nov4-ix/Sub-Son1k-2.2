@@ -9,8 +9,8 @@
 
 - ✅ **Railway CLI:** v4.11.0 instalado
 - ✅ **Vercel CLI:** v48.8.2 instalado
-- ✅ **Railway Login:** [usuario-railway] (verificar con `railway whoami`)
-- ✅ **Vercel Login:** [usuario-vercel] (verificar con `vercel whoami`)
+- ✅ **Railway Login:** [verificar con `railway whoami`]
+- ✅ **Vercel Login:** [verificar con `vercel whoami`]
 
 ---
 
