@@ -124,8 +124,8 @@ vercel --scope son1kvers3s-projects-c3cdfb54
 #### **Opción C: Configurar Git Author**
 ```bash
 # Configurar git author para el equipo
-git config user.email "email-del-equipo@son1kvers3.com"
-git config user.name "Son1kVers3 Team"
+git config user.email "email-del-equipo@ejemplo.com"
+git config user.name "Nombre del Equipo"
 ```
 
 ---
