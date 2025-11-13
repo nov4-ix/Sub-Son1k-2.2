@@ -54,8 +54,8 @@ Error: P1001: Can't reach database server at `db.xxx.supabase.co:5432`
 
 ### **4. Vercel - Permisos de Equipo**
 ```
-Error: Git author son1kvers3@protonmail.com must have access 
-to the team Son1kVers3's projects on Vercel to create deployments.
+Error: Git author [email] must have access 
+to the team [team-name]'s projects on Vercel to create deployments.
 ```
 
 **Causa:** El autor del git no tiene acceso al equipo en Vercel.
@@ -108,9 +108,9 @@ railway status
 
 #### **Opción A: Agregar Usuario al Equipo**
 1. Ve a https://vercel.com/teams
-2. Selecciona equipo `Son1kVers3`
+2. Selecciona tu equipo
 3. Ve a "Members"
-4. Invita a `son1kvers3@protonmail.com`
+4. Invita al usuario que necesita acceso
 
 #### **Opción B: Cambiar Scope**
 ```bash
@@ -118,14 +118,14 @@ railway status
 vercel switch
 
 # O usar el scope del equipo directamente
-vercel --scope son1kvers3s-projects-c3cdfb54
+vercel --scope [team-scope-id]
 ```
 
 #### **Opción C: Configurar Git Author**
 ```bash
 # Configurar git author para el equipo
-git config user.email "email-del-equipo@son1kvers3.com"
-git config user.name "Son1kVers3 Team"
+git config user.email "email-del-equipo@ejemplo.com"
+git config user.name "Nombre del Equipo"
 ```
 
 ---
