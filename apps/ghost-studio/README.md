@@ -1,3 +1,4 @@
+```
 # Ghost Studio 🎵
 
 AI-powered music cover generation with Suno API integration and built-in looper for quick demos.
@@ -168,8 +169,7 @@ const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/suno/cover
 
 ## 📄 License
 
-MIT License - See LICENSE file for details.
-
----
+MIT License - See [LICENSE](../../LICENSE.md) file for details.
 
 **Ghost Studio** - Where AI meets creativity 🎵✨
+```
