@@ -1,4 +1,3 @@
-```
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
@@ -44,6 +43,17 @@ interface GeneratedVideo {
   thumbnail: string
 }
 
+// Define static asset paths for better maintainability
+const ASSET_PATHS = {
+  styleCyberpunk: '/style-cyberpunk.jpg',
+  styleVintage: '/style-vintage.jpg',
+  styleAbstract: '/style-abstract.jpg',
+  styleCinematic: '/style-cinematic.jpg',
+  styleParticles: '/style-particles.jpg',
+  styleWaveform: '/style-waveform.jpg',
+  videoThumbnailGenerated: '/video-thumb-generated.jpg',
+}
+
 export function AIVideoGenerator() {
   const [selectedAudio, setSelectedAudio] = useState<File | null>(null)
   const [selectedStyle, setSelectedStyle] = useState<string>('')
@@ -67,42 +77,42 @@ export function AIVideoGenerator() {
       id: 'cyberpunk',
       name: 'Cyberpunk',
       description: 'Neon lights, glitch effects, futuristic atmosphere',
-      preview: '/style-cyberpunk.jpg',
+      preview: ASSET_PATHS.styleCyberpunk,
       category: 'modern'
     },
     {
       id: 'vintage-film',
       name: 'Vintage Film',
       description: 'Classic film grain, warm colors, retro aesthetics',
-      preview: '/style-vintage.jpg',
+      preview: ASSET_PATHS.styleVintage,
       category: 'vintage'
     },
     {
       id: 'abstract-art',
       name: 'Abstract Art',
       description: 'Fluid shapes, color gradients, artistic expression',
-      preview: '/style-abstract.jpg',
+      preview: ASSET_PATHS.styleAbstract,
       category: 'abstract'
     },
     {
       id: 'cinematic',
       name: 'Cinematic',
       description: 'Movie-like quality, dramatic lighting, professional look',
-      preview: '/style-cinematic.jpg',
+      preview: ASSET_PATHS.styleCinematic,
       category: 'cinematic'
     },
     {
       id: 'particle-dance',
       name: 'Particle Dance',
       description: 'Dynamic particles synchronized with audio',
-      preview: '/style-particles.jpg',
+      preview: ASSET_PATHS.styleParticles,
       category: 'abstract'
     },
     {
       id: 'waveform',
       name: 'Waveform Visualizer',
       description: 'Audio-reactive waveforms and frequency visualization',
-      preview: '/style-waveform.jpg',
+      preview: ASSET_PATHS.styleWaveform,
       category: 'modern'
     }
   ]
@@ -156,7 +166,7 @@ export function AIVideoGenerator() {
         resolution: '1920x1080',
         fps: 30,
         createdAt: new Date().toISOString(),
-        thumbnail: '/video-thumb-generated.jpg'
+        thumbnail: ASSET_PATHS.videoThumbnailGenerated // Using constant here
       }
 
       setGeneratedVideo(newVideo)
