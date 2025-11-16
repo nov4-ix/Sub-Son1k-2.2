@@ -6,21 +6,20 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "build:vercel": "tsc && vite build --mode production",
+    "build:vercel": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --fix",
     "test": "vitest",
-    "test:ui": "vitest --ui",
-    "vercel-build": "npm run build:vercel"
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@super-son1k/shared-hooks": "workspace:*",
     "@super-son1k/shared-ui": "workspace:*",
     "@super-son1k/shared-types": "workspace:*",
+    "@super-son1k/shared-services": "workspace:*",
     "@supabase/storage-js": "^2.5.5",
     "@supabase/supabase-js": "^2.39.0",
     "@vercel/speed-insights": "^1.2.0",
-    "axios": "^1.6.5",
     "clsx": "^2.0.0",
     "framer-motion": "^10.16.16",
     "lucide-react": "^0.544.0",

@@ -6,19 +6,12 @@ import {
   Pause,
   Download,
   Share2,
-  Settings,
   Palette,
   Music,
-  Image,
   Film,
-  Sparkles,
   Clock,
   Eye,
-  Heart,
   Volume2,
-  Maximize,
-  RotateCcw,
-  Save,
   Upload
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -43,6 +36,17 @@ interface GeneratedVideo {
   thumbnail: string
 }
 
+// Define static asset paths for better maintainability
+const ASSET_PATHS = {
+  styleCyberpunk: '/style-cyberpunk.jpg',
+  styleVintage: '/style-vintage.jpg',
+  styleAbstract: '/style-abstract.jpg',
+  styleCinematic: '/style-cinematic.jpg',
+  styleParticles: '/style-particles.jpg',
+  styleWaveform: '/style-waveform.jpg',
+  videoThumbnailGenerated: '/video-thumb-generated.jpg',
+}
+
 export function AIVideoGenerator() {
   const [selectedAudio, setSelectedAudio] = useState<File | null>(null)
   const [selectedStyle, setSelectedStyle] = useState<string>('')
@@ -52,47 +56,56 @@ export function AIVideoGenerator() {
   const [audioPreview, setAudioPreview] = useState<string | null>(null)
   const [generationProgress, setGenerationProgress] = useState(0)
 
+  // Effect to revoke the object URL when audioPreview changes or component unmounts
+  useEffect(() => {
+    return () => {
+      if (audioPreview) {
+        URL.revokeObjectURL(audioPreview)
+      }
+    }
+  }, [audioPreview])
+
   const videoStyles: VideoStyle[] = [
     {
       id: 'cyberpunk',
       name: 'Cyberpunk',
       description: 'Neon lights, glitch effects, futuristic atmosphere',
-      preview: '/style-cyberpunk.jpg',
+      preview: ASSET_PATHS.styleCyberpunk,
       category: 'modern'
     },
     {
       id: 'vintage-film',
       name: 'Vintage Film',
       description: 'Classic film grain, warm colors, retro aesthetics',
-      preview: '/style-vintage.jpg',
+      preview: ASSET_PATHS.styleVintage,
       category: 'vintage'
     },
     {
       id: 'abstract-art',
       name: 'Abstract Art',
       description: 'Fluid shapes, color gradients, artistic expression',
-      preview: '/style-abstract.jpg',
+      preview: ASSET_PATHS.styleAbstract,
       category: 'abstract'
     },
     {
       id: 'cinematic',
       name: 'Cinematic',
       description: 'Movie-like quality, dramatic lighting, professional look',
-      preview: '/style-cinematic.jpg',
+      preview: ASSET_PATHS.styleCinematic,
       category: 'cinematic'
     },
     {
       id: 'particle-dance',
       name: 'Particle Dance',
       description: 'Dynamic particles synchronized with audio',
-      preview: '/style-particles.jpg',
+      preview: ASSET_PATHS.styleParticles,
       category: 'abstract'
     },
     {
       id: 'waveform',
       name: 'Waveform Visualizer',
       description: 'Audio-reactive waveforms and frequency visualization',
-      preview: '/style-waveform.jpg',
+      preview: ASSET_PATHS.styleWaveform,
       category: 'modern'
     }
   ]
@@ -101,6 +114,10 @@ export function AIVideoGenerator() {
     const file = event.target.files?.[0]
     if (file && file.type.startsWith('audio/')) {
       setSelectedAudio(file)
+      // If there's an existing preview URL, revoke it before creating a new one
+      if (audioPreview) {
+        URL.revokeObjectURL(audioPreview)
+      }
       const url = URL.createObjectURL(file)
       setAudioPreview(url)
       toast.success('Audio file uploaded successfully!')
@@ -142,7 +159,7 @@ export function AIVideoGenerator() {
         resolution: '1920x1080',
         fps: 30,
         createdAt: new Date().toISOString(),
-        thumbnail: '/video-thumb-generated.jpg'
+        thumbnail: ASSET_PATHS.videoThumbnailGenerated // Using constant here
       }
 
       setGeneratedVideo(newVideo)
@@ -262,8 +279,12 @@ export function AIVideoGenerator() {
                       onClick={() => setSelectedStyle(style.id)}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-[#333] rounded-lg flex items-center justify-center">
-                          <Palette size={20} className="text-gray-400" />
+                        <div className="w-12 h-12 bg-[#333] rounded-lg flex items-center justify-center overflow-hidden">
+                          {style.preview ? (
+                            <img src={style.preview} alt={`${style.name} preview`} className="w-full h-full object-cover" />
+                          ) : (
+                            <Palette size={20} className="text-gray-400" />
+                          )}
                         </div>
                         <div className="flex-1">
                           <h4 className="font-medium text-sm">{style.name}</h4>
@@ -446,11 +467,15 @@ export function AIVideoGenerator() {
                 }`}
                 onClick={() => setSelectedStyle(style.id)}
               >
-                <div className="aspect-video bg-[#333] flex items-center justify-center">
-                  <div className="text-center text-gray-400">
-                    <Palette size={32} className="mx-auto mb-2" />
-                    <p className="text-sm">{style.name}</p>
-                  </div>
+                <div className="aspect-video bg-[#333] flex items-center justify-center overflow-hidden">
+                  {style.preview ? (
+                    <img src={style.preview} alt={`${style.name} preview`} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-center text-gray-400">
+                      <Palette size={32} className="mx-auto mb-2" />
+                      <p className="text-sm">{style.name}</p>
+                    </div>
+                  )}
                 </div>
                 <div className="p-4">
                   <h3 className="font-semibold mb-2">{style.name}</h3>

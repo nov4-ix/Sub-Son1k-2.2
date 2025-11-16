@@ -1,3 +1,4 @@
+```
 # Ghost Studio 🎵
 
 AI-powered music cover generation with Suno API integration and built-in looper for quick demos.
@@ -17,33 +18,31 @@ AI-powered music cover generation with Suno API integration and built-in looper 
 ### 1. Install Dependencies
 ```bash
 cd apps/ghost-studio
-npm install
+pnpm install
 ```
 
 ### 2. Environment Setup
 Copy `env.local.example` to `.env.local` and configure:
 
 ```bash
-# Suno API Configuration
-VITE_SUNO_API_KEY=your_suno_api_key_here
-
 # Supabase Configuration (for audio storage)
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# Optional: Backend URL (if using proxy server)
+# Backend URL (required for Suno API and other AI interactions via proxy)
 VITE_BACKEND_URL=http://localhost:3000
 ```
 
 ### 3. Supabase Setup
 1. Create a new Supabase project
 2. Go to Storage → Create bucket named `ghost-audio`
-3. Set bucket to public
-4. Configure CORS for your domain
+3. Set the `ghost-audio` bucket to public for public read access.
+4. **(Recommended) Configure Row Level Security (RLS)**: Even with a public bucket, RLS allows for granular control over who can perform specific operations (e.g., allow public reads, but restrict writes to authenticated users only).
+5. Configure CORS for your domain
 
 ### 4. Run Development Server
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Visit `http://localhost:3001`
@@ -89,12 +88,12 @@ Visit `http://localhost:3001`
 ## 🔧 Technical Stack
 
 - **Frontend**: React 18 + TypeScript + Vite
-- **Styling**: Tailwind CSS + SSV-BETA design system
+- **Styling**: Tailwind CSS + SSV-BETA design system (a custom internal component library)
 - **Animations**: Framer Motion
 - **State**: Zustand
 - **Audio**: Web Audio API + Meyda + Tone.js
 - **Storage**: Supabase
-- **AI**: Suno Cover API
+- **AI**: Suno Cover API (proxied via `VITE_BACKEND_URL`)
 
 ## 📁 Project Structure
 
@@ -134,11 +133,11 @@ Perfect for:
 
 ## 🔐 Security Note
 
-For production, use a backend proxy to hide your Suno API key:
+**Ghost Studio relies on a backend proxy for all Suno API interactions to keep your API keys secure.** Ensure `VITE_BACKEND_URL` is configured to point to your proxy server (e.g., `packages/backend`).
 
 ```typescript
-// Instead of direct API calls, use your backend
-const response = await fetch('/api/suno/cover', {
+// Instead of direct API calls, use your backend proxy
+const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/suno/cover`, {
   method: 'POST',
   body: JSON.stringify(payload)
 });
@@ -149,8 +148,8 @@ const response = await fetch('/api/suno/cover', {
 ### Common Issues
 
 1. **Microphone Access**: Ensure browser permissions are granted
-2. **Supabase Storage**: Check bucket permissions and CORS settings
-3. **Suno API**: Verify API key and endpoint availability
+2. **Supabase Storage**: Check bucket permissions and CORS settings, and ensure any RLS policies are correctly configured.
+3. **Suno API**: Verify `VITE_BACKEND_URL` is correctly configured and your backend proxy is running and has access to the Suno API.
 4. **Audio Analysis**: Meyda requires Web Audio API support
 
 ### Development Tips
@@ -158,7 +157,7 @@ const response = await fetch('/api/suno/cover', {
 - Use Chrome/Edge for best Web Audio API support
 - Check browser console for detailed error messages
 - Test with short audio files first (< 10MB)
-- Monitor network tab for API call issues
+- Monitor network tab for API call issues to `VITE_BACKEND_URL`
 
 ## 🚀 Roadmap
 
@@ -171,8 +170,7 @@ const response = await fetch('/api/suno/cover', {
 
 ## 📄 License
 
-MIT License - See LICENSE file for details.
-
----
+MIT License - See [LICENSE](../../LICENSE.md) file for details.
 
 **Ghost Studio** - Where AI meets creativity 🎵✨
+```
