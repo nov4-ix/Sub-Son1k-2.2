@@ -24,14 +24,11 @@ npm install
 Copy `env.local.example` to `.env.local` and configure:
 
 ```bash
-# Suno API Configuration
-VITE_SUNO_API_KEY=your_suno_api_key_here
-
 # Supabase Configuration (for audio storage)
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# Optional: Backend URL (if using proxy server)
+# Backend URL (required for Suno API and other AI interactions via proxy)
 VITE_BACKEND_URL=http://localhost:3000
 ```
 
@@ -94,7 +91,7 @@ Visit `http://localhost:3001`
 - **State**: Zustand
 - **Audio**: Web Audio API + Meyda + Tone.js
 - **Storage**: Supabase
-- **AI**: Suno Cover API
+- **AI**: Suno Cover API (proxied via `VITE_BACKEND_URL`)
 
 ## 📁 Project Structure
 
@@ -134,11 +131,11 @@ Perfect for:
 
 ## 🔐 Security Note
 
-For production, use a backend proxy to hide your Suno API key:
+**Ghost Studio relies on a backend proxy for all Suno API interactions to keep your API keys secure.** Ensure `VITE_BACKEND_URL` is configured to point to your proxy server (e.g., `packages/backend`).
 
 ```typescript
-// Instead of direct API calls, use your backend
-const response = await fetch('/api/suno/cover', {
+// Instead of direct API calls, use your backend proxy
+const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/suno/cover`, {
   method: 'POST',
   body: JSON.stringify(payload)
 });
@@ -150,7 +147,7 @@ const response = await fetch('/api/suno/cover', {
 
 1. **Microphone Access**: Ensure browser permissions are granted
 2. **Supabase Storage**: Check bucket permissions and CORS settings
-3. **Suno API**: Verify API key and endpoint availability
+3. **Suno API**: Verify `VITE_BACKEND_URL` is correctly configured and your backend proxy is running and has access to the Suno API.
 4. **Audio Analysis**: Meyda requires Web Audio API support
 
 ### Development Tips
@@ -158,7 +155,7 @@ const response = await fetch('/api/suno/cover', {
 - Use Chrome/Edge for best Web Audio API support
 - Check browser console for detailed error messages
 - Test with short audio files first (< 10MB)
-- Monitor network tab for API call issues
+- Monitor network tab for API call issues to `VITE_BACKEND_URL`
 
 ## 🚀 Roadmap
 
