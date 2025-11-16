@@ -18,7 +18,7 @@ AI-powered music cover generation with Suno API integration and built-in looper 
 ### 1. Install Dependencies
 ```bash
 cd apps/ghost-studio
-npm install
+pnpm install
 ```
 
 ### 2. Environment Setup
@@ -41,7 +41,7 @@ VITE_BACKEND_URL=http://localhost:3000
 
 ### 4. Run Development Server
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Visit `http://localhost:3001`
