@@ -36,8 +36,9 @@ VITE_BACKEND_URL=http://localhost:3000
 ### 3. Supabase Setup
 1. Create a new Supabase project
 2. Go to Storage → Create bucket named `ghost-audio`
-3. Set bucket to public
-4. Configure CORS for your domain
+3. Set the `ghost-audio` bucket to public for public read access.
+4. **(Recommended) Configure Row Level Security (RLS)**: Even with a public bucket, RLS allows for granular control over who can perform specific operations (e.g., allow public reads, but restrict writes to authenticated users only).
+5. Configure CORS for your domain
 
 ### 4. Run Development Server
 ```bash
@@ -147,7 +148,7 @@ const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/suno/cover
 ### Common Issues
 
 1. **Microphone Access**: Ensure browser permissions are granted
-2. **Supabase Storage**: Check bucket permissions and CORS settings
+2. **Supabase Storage**: Check bucket permissions and CORS settings, and ensure any RLS policies are correctly configured.
 3. **Suno API**: Verify `VITE_BACKEND_URL` is correctly configured and your backend proxy is running and has access to the Suno API.
 4. **Audio Analysis**: Meyda requires Web Audio API support
 
