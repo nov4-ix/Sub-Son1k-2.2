@@ -86,7 +86,7 @@ Visit `http://localhost:3001`
 ## 🔧 Technical Stack
 
 - **Frontend**: React 18 + TypeScript + Vite
-- **Styling**: Tailwind CSS + SSV-BETA design system
+- **Styling**: Tailwind CSS + SSV-BETA design system (a custom internal component library)
 - **Animations**: Framer Motion
 - **State**: Zustand
 - **Audio**: Web Audio API + Meyda + Tone.js
