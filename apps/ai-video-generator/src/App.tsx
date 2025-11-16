@@ -1,4 +1,3 @@
-```
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
@@ -280,8 +279,12 @@ export function AIVideoGenerator() {
                       onClick={() => setSelectedStyle(style.id)}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-[#333] rounded-lg flex items-center justify-center">
-                          <Palette size={20} className="text-gray-400" />
+                        <div className="w-12 h-12 bg-[#333] rounded-lg flex items-center justify-center overflow-hidden">
+                          {style.preview ? (
+                            <img src={style.preview} alt={`${style.name} preview`} className="w-full h-full object-cover" />
+                          ) : (
+                            <Palette size={20} className="text-gray-400" />
+                          )}
                         </div>
                         <div className="flex-1">
                           <h4 className="font-medium text-sm">{style.name}</h4>
@@ -464,11 +467,15 @@ export function AIVideoGenerator() {
                 }`}
                 onClick={() => setSelectedStyle(style.id)}
               >
-                <div className="aspect-video bg-[#333] flex items-center justify-center">
-                  <div className="text-center text-gray-400">
-                    <Palette size={32} className="mx-auto mb-2" />
-                    <p className="text-sm">{style.name}</p>
-                  </div>
+                <div className="aspect-video bg-[#333] flex items-center justify-center overflow-hidden">
+                  {style.preview ? (
+                    <img src={style.preview} alt={`${style.name} preview`} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-center text-gray-400">
+                      <Palette size={32} className="mx-auto mb-2" />
+                      <p className="text-sm">{style.name}</p>
+                    </div>
+                  )}
                 </div>
                 <div className="p-4">
                   <h3 className="font-semibold mb-2">{style.name}</h3>
@@ -487,4 +494,3 @@ export function AIVideoGenerator() {
 }
 
 export default AIVideoGenerator
-```
