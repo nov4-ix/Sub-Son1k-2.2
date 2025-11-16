@@ -4,6 +4,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import crypto from 'crypto';
 import { SECURITY } from '@super-son1k/shared-utils';
 
 /**
@@ -282,6 +283,25 @@ export async function rateLimitMiddleware(request: FastifyRequest, reply: Fastif
   reply.header('X-RateLimit-Limit', maxRequests.toString());
   reply.header('X-RateLimit-Remaining', (maxRequests - current.count).toString());
   reply.header('X-RateLimit-Reset', current.resetTime.toString());
+}
+
+/**
+ * Generate device fingerprint from request headers
+ */
+export function generateDeviceFingerprint(request: FastifyRequest): string {
+  const userAgent = request.headers['user-agent'] || '';
+  const ip = request.ip || 'unknown';
+  const acceptLanguage = request.headers['accept-language'] || '';
+  const acceptEncoding = request.headers['accept-encoding'] || '';
+  
+  // Create fingerprint string
+  const fingerprintString = `${userAgent}-${ip}-${acceptLanguage}-${acceptEncoding}`;
+  
+  // Hash it for privacy
+  return crypto
+    .createHash('sha256')
+    .update(fingerprintString)
+    .digest('hex');
 }
 
 /**

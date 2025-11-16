@@ -8,6 +8,7 @@ import { PrismaClient } from '@prisma/client';
 import axios, { AxiosInstance } from 'axios';
 import Redis from 'ioredis';
 import { EventEmitter } from 'events';
+import crypto from 'crypto';
 import {
   generateSecureToken,
   generateAPIKey,
@@ -17,6 +18,7 @@ import {
   ValidationError,
   ErrorFactory
 } from '@super-son1k/shared-utils';
+import { env } from '../lib/config';
 
 export interface TokenInfo {
   id: string;
@@ -54,6 +56,13 @@ export interface TokenPoolStats {
   successRate: number;
 }
 
+interface EncryptedToken {
+  ciphertext: string;
+  iv: string;
+  authTag: string;
+  version: number;
+}
+
 export class TokenManager extends EventEmitter {
   private tokens: Map<string, TokenInfo> = new Map();
   private rateLimiters: Map<string, RateLimiter> = new Map();
@@ -61,9 +70,18 @@ export class TokenManager extends EventEmitter {
   private axiosInstances: Map<string, AxiosInstance> = new Map();
   private healthCheckInterval?: NodeJS.Timeout;
   private cleanupInterval?: NodeJS.Timeout;
+  private masterKey: Buffer;
+  private readonly algorithm = 'aes-256-gcm';
+  private readonly keyLength = 32; // 256 bits
+  private readonly ivLength = 16; // 128 bits
+  private readonly currentVersion = 1;
 
   constructor(private prisma: PrismaClient) {
     super();
+
+    // Derive master key from environment variable
+    const encryptionKey = env.TOKEN_ENCRYPTION_KEY || 'dev-encryption-key-min-32-chars-for-development-only-change-in-production';
+    this.masterKey = this.deriveMasterKey(encryptionKey);
 
     this.initializeRedis();
     this.initializeHealthCheck();
@@ -73,6 +91,14 @@ export class TokenManager extends EventEmitter {
     this.on('tokenAdded', this.handleTokenAdded.bind(this));
     this.on('tokenRemoved', this.handleTokenRemoved.bind(this));
     this.on('tokenError', this.handleTokenError.bind(this));
+  }
+
+  /**
+   * Derive master key using scrypt
+   */
+  private deriveMasterKey(seed: string): Buffer {
+    const salt = 'son1k-token-encryption-salt-v1'; // Fixed salt for consistency
+    return crypto.scryptSync(seed, salt, this.keyLength);
   }
 
   /**
@@ -96,9 +122,10 @@ export class TokenManager extends EventEmitter {
    * Initialize health check interval
    */
   private initializeHealthCheck() {
+    const interval = parseInt(process.env.HEALTH_CHECK_INTERVAL || '300000'); // 5 minutes default
     this.healthCheckInterval = setInterval(async () => {
       await this.performHealthCheck();
-    }, 60000); // Every minute
+    }, interval);
   }
 
   /**
@@ -134,7 +161,8 @@ export class TokenManager extends EventEmitter {
       }
 
       // Validate token with Suno API
-      const isValid = await this.validateTokenWithGenerationAPI(token);
+      const validation = await this.validateTokenWithGenerationAPI(token);
+      const isValid = validation.isValid;
 
       // Create token record
       const tokenRecord = await this.prisma.token.create({
@@ -230,11 +258,40 @@ export class TokenManager extends EventEmitter {
   }
 
   /**
-   * Validate token with generation API
+   * Validate token with generation API and check credits
    */
-  async validateTokenWithGenerationAPI(token: string): Promise<boolean> {
+  async validateTokenWithGenerationAPI(token: string): Promise<{ isValid: boolean; credits?: number }> {
     try {
-      // Validar token haciendo una petición de prueba a la API de generación
+      // Try to check credits first (if API supports it)
+      try {
+        const apiUrl = process.env.GENERATION_API_URL || process.env.SUNO_API_URL || 'https://ai.imgkits.com/suno';
+        const creditsResponse = await axios.get(`${apiUrl}/credits`, {
+          timeout: 5000,
+          headers: {
+            'authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'channel': 'node-api',
+            'origin': 'https://www.livepolls.app',
+            'referer': 'https://www.livepolls.app/'
+          },
+          validateStatus: (status) => status < 500
+        });
+
+        if (creditsResponse.status === 200 && creditsResponse.data) {
+          const credits = creditsResponse.data.credits || creditsResponse.data.credit || 0;
+          return {
+            isValid: credits > 0,
+            credits
+          };
+        }
+      } catch (creditsError: any) {
+        // Credits endpoint might not exist, fallback to generation test
+        if (creditsError.response?.status !== 404) {
+          console.debug('Credits check failed, using fallback:', creditsError.message);
+        }
+      }
+
+      // Fallback: Validate token haciendo una petición de prueba a la API de generación
       const apiUrl = process.env.GENERATION_API_URL || process.env.SUNO_API_URL || 'https://ai.imgkits.com/suno';
       const response = await axios.post(`${apiUrl}/generate`, {
         prompt: 'test',
@@ -256,14 +313,17 @@ export class TokenManager extends EventEmitter {
       });
 
       // Token válido si no es 401 (Unauthorized)
-      return response.status !== 401;
+      return {
+        isValid: response.status !== 401,
+        credits: undefined
+      };
     } catch (error: any) {
       // Si es error 401, el token es inválido
       if (error.response?.status === 401) {
-        return false;
+        return { isValid: false };
       }
       console.error('Token validation failed:', error);
-      return false;
+      return { isValid: false };
     }
   }
 
@@ -389,19 +449,101 @@ export class TokenManager extends EventEmitter {
   }
 
   /**
-   * Encrypt token for storage
+   * Encrypt token for storage using AES-256-GCM
    */
   private encryptToken(token: string): string {
-    // Simple base64 encoding for now - implement proper encryption in production
-    return Buffer.from(token).toString('base64');
+    try {
+      // Generate random IV for each encryption
+      const iv = crypto.randomBytes(this.ivLength);
+      
+      // Create cipher
+      const cipher = crypto.createCipheriv(
+        this.algorithm,
+        this.masterKey,
+        iv
+      );
+
+      // Encrypt token
+      let encrypted = cipher.update(token, 'utf8', 'hex');
+      encrypted += cipher.final('hex');
+
+      // Get authentication tag
+      const authTag = cipher.getAuthTag();
+
+      // Create encrypted token object
+      const encryptedToken: EncryptedToken = {
+        ciphertext: encrypted,
+        iv: iv.toString('hex'),
+        authTag: authTag.toString('hex'),
+        version: this.currentVersion
+      };
+
+      // Return as JSON string (will be stored in DB/Redis)
+      return JSON.stringify(encryptedToken);
+    } catch (error) {
+      console.error('Token encryption failed:', error);
+      throw ErrorFactory.fromUnknown(error, 'Failed to encrypt token');
+    }
   }
 
   /**
-   * Decrypt token from storage
+   * Decrypt token from storage using AES-256-GCM
    */
-  private decryptToken(encryptedToken: string): string {
-    // Simple base64 decoding for now - implement proper decryption in production
-    return Buffer.from(encryptedToken, 'base64').toString('utf-8');
+  private decryptToken(encryptedTokenString: string): string {
+    try {
+      // Try to parse as new format (JSON with version)
+      let encryptedToken: EncryptedToken;
+      
+      try {
+        encryptedToken = JSON.parse(encryptedTokenString);
+      } catch (parseError) {
+        // Fallback: might be old base64 format, try to decrypt it
+        try {
+          const oldDecrypted = Buffer.from(encryptedTokenString, 'base64').toString('utf-8');
+          // If it's valid JSON with version, it's already decrypted old format
+          const parsed = JSON.parse(oldDecrypted);
+          if (parsed.version) {
+            encryptedToken = parsed;
+          } else {
+            // It's plain text in old format, return as-is
+            return oldDecrypted;
+          }
+        } catch {
+          // If all parsing fails, assume it's old base64 format
+          return Buffer.from(encryptedTokenString, 'base64').toString('utf-8');
+        }
+      }
+
+      // Validate version
+      if (encryptedToken.version !== this.currentVersion) {
+        console.warn(`Token encryption version mismatch: ${encryptedToken.version} vs ${this.currentVersion}`);
+        // For now, try to decrypt anyway (for migration purposes)
+      }
+
+      // Create decipher
+      const decipher = crypto.createDecipheriv(
+        this.algorithm,
+        this.masterKey,
+        Buffer.from(encryptedToken.iv, 'hex')
+      );
+
+      // Set authentication tag
+      decipher.setAuthTag(Buffer.from(encryptedToken.authTag, 'hex'));
+
+      // Decrypt token
+      let decrypted = decipher.update(encryptedToken.ciphertext, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+
+      return decrypted;
+    } catch (error) {
+      console.error('Token decryption failed:', error);
+      // Try fallback to base64 for backward compatibility
+      try {
+        return Buffer.from(encryptedTokenString, 'base64').toString('utf-8');
+      } catch (fallbackError) {
+        throw ErrorFactory.fromUnknown(error, 'Failed to decrypt token');
+      }
+    }
   }
 
   /**
@@ -418,40 +560,115 @@ export class TokenManager extends EventEmitter {
 
   /**
    * Perform health check on all tokens
+   * Validates tokens, checks credits, and alerts if < 3 healthy tokens
    */
-  async performHealthCheck(): Promise<boolean> {
+  async performHealthCheck(): Promise<{ isHealthy: boolean; healthyCount: number; totalCount: number }> {
     try {
       const tokens = await this.prisma.token.findMany({
-        where: { isActive: true },
-        take: 5 // Check only a sample
+        where: { isActive: true }
       });
 
+      if (tokens.length === 0) {
+        console.warn('⚠️ No active tokens in pool');
+        this.emit('tokenPoolEmpty', {});
+        return { isHealthy: false, healthyCount: 0, totalCount: 0 };
+      }
+
       let healthyCount = 0;
+      const minHealthyTokens = 3;
 
       for (const token of tokens) {
-        const isHealthy = await this.validateTokenWithGenerationAPI(await this.getOriginalToken(token.id) || '');
+        try {
+          const originalToken = await this.getOriginalToken(token.id);
+          if (!originalToken) {
+            console.warn(`Token ${token.id} has no original token stored`);
+            continue;
+          }
 
-        if (isHealthy) {
-          healthyCount++;
-        } else {
-          // Mark as invalid
+          const validation = await this.validateTokenWithGenerationAPI(originalToken);
+
+          if (validation.isValid) {
+            healthyCount++;
+            
+            // Update token metadata with credits if available
+            if (validation.credits !== undefined) {
+              const metadata = typeof token.metadata === 'string' 
+                ? JSON.parse(token.metadata || '{}')
+                : token.metadata || {};
+              
+              metadata.credits = validation.credits;
+              metadata.lastCreditsCheck = new Date().toISOString();
+
+              await this.prisma.token.update({
+                where: { id: token.id },
+                data: { 
+                  isValid: true,
+                  metadata: JSON.stringify(metadata)
+                }
+              });
+            } else {
+              // Just mark as valid
+              await this.prisma.token.update({
+                where: { id: token.id },
+                data: { isValid: true }
+              });
+            }
+
+            // Update cache
+            const cachedToken = this.tokens.get(token.id);
+            if (cachedToken) {
+              cachedToken.isValid = true;
+            }
+          } else {
+            // Mark as invalid
+            await this.prisma.token.update({
+              where: { id: token.id },
+              data: { isValid: false }
+            });
+
+            // Update cache
+            const cachedToken = this.tokens.get(token.id);
+            if (cachedToken) {
+              cachedToken.isValid = false;
+            }
+
+            console.warn(`⚠️ Token ${token.id} marked as invalid during health check`);
+          }
+        } catch (error) {
+          console.error(`Error checking token ${token.id}:`, error);
+          // Mark as invalid on error
           await this.prisma.token.update({
             where: { id: token.id },
             data: { isValid: false }
           });
-
-          // Update cache only if token exists
-          const cachedToken = this.tokens.get(token.id);
-          if (cachedToken) {
-            cachedToken.isValid = false;
-          }
         }
       }
 
-      return healthyCount > 0;
+      const isHealthy = healthyCount >= minHealthyTokens;
+
+      // Alert if too few healthy tokens
+      if (healthyCount < minHealthyTokens) {
+        const alert = {
+          level: healthyCount === 0 ? 'critical' : 'warning' as 'critical' | 'warning',
+          message: `Only ${healthyCount} healthy token(s) remaining (minimum: ${minHealthyTokens})`,
+          healthyCount,
+          totalCount: tokens.length,
+          timestamp: new Date().toISOString()
+        };
+
+        console.error(`🚨 TOKEN POOL ALERT [${alert.level.toUpperCase()}]:`, alert.message);
+        this.emit('tokenPoolLow', alert);
+      }
+
+      return {
+        isHealthy,
+        healthyCount,
+        totalCount: tokens.length
+      };
     } catch (error) {
       console.error('Health check failed:', error);
-      return false;
+      this.emit('healthCheckFailed', { error });
+      return { isHealthy: false, healthyCount: 0, totalCount: 0 };
     }
   }
 

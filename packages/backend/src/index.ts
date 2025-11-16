@@ -23,6 +23,7 @@ import { nftRoutes } from './routes/nft';
 import { analyticsRoutes } from './routes/analytics';
 import { tokenRoutes } from './routes/tokens';
 import { extensionRoutes } from './routes/extension';
+import { adminRoutes } from './routes/admin';
 
 // Import middleware
 import { authMiddleware } from './middleware/auth';
@@ -39,6 +40,7 @@ import { AnalyticsService } from './services/analyticsService';
 import { UserExtensionService } from './services/userExtensionService';
 import { TokenPoolService } from './services/tokenPoolService';
 import { cacheService } from './services/cacheService';
+import { getAlertService } from './services/alertService';
 
 // Import WebSocket handlers
 import { setupWebSocket } from './services/websocketService';
@@ -78,6 +80,16 @@ const collaborationService = new CollaborationService(prisma, tokenManager);
 const analyticsService = new AnalyticsService(prisma);
 const userExtensionService = new UserExtensionService(prisma, tokenManager);
 const tokenPoolService = new TokenPoolService(prisma, tokenManager);
+const alertService = getAlertService();
+
+// Connect alert service to token manager events
+tokenManager.on('tokenPoolLow', async (data: any) => {
+  await alertService.monitorTokenPool(data.healthyCount, data.totalCount);
+});
+
+tokenManager.on('tokenPoolEmpty', async () => {
+  await alertService.monitorTokenPool(0, 0);
+});
 
 // Add services to FastifyInstance
 fastify.decorate('prisma', prisma);
@@ -307,6 +319,11 @@ async function registerRoutes() {
   // Analytics routes
   await fastify.register(analyticsRoutes(fastify, analyticsService), {
     prefix: '/api/analytics'
+  });
+
+  // Admin routes (protected by adminMiddleware)
+  await fastify.register(adminRoutes(tokenManager, tokenPoolService, analyticsService), {
+    prefix: '/api/admin'
   });
 }
 

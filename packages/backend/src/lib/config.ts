@@ -48,6 +48,9 @@ const envSchema = z.object({
   ROTATION_INTERVAL: z.string().optional(),
   HEALTH_CHECK_INTERVAL: z.string().optional(),
   
+  // Encryption
+  TOKEN_ENCRYPTION_KEY: z.string().min(32, 'TOKEN_ENCRYPTION_KEY debe tener al menos 32 caracteres').optional(),
+  
   // Stripe (opcional)
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
@@ -88,6 +91,7 @@ function validateEnv() {
       MAX_TOKENS: process.env.MAX_TOKENS,
       ROTATION_INTERVAL: process.env.ROTATION_INTERVAL,
       HEALTH_CHECK_INTERVAL: process.env.HEALTH_CHECK_INTERVAL,
+      TOKEN_ENCRYPTION_KEY: process.env.TOKEN_ENCRYPTION_KEY,
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
       STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
       STRIPE_PRO_PRICE_ID: process.env.STRIPE_PRO_PRICE_ID,
@@ -134,6 +138,7 @@ function validateEnv() {
         MAX_TOKENS: process.env.MAX_TOKENS,
         ROTATION_INTERVAL: process.env.ROTATION_INTERVAL,
         HEALTH_CHECK_INTERVAL: process.env.HEALTH_CHECK_INTERVAL,
+        TOKEN_ENCRYPTION_KEY: process.env.TOKEN_ENCRYPTION_KEY || 'dev-encryption-key-min-32-chars-for-development-only-change-in-production',
         STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
         STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
         STRIPE_PRO_PRICE_ID: process.env.STRIPE_PRO_PRICE_ID,

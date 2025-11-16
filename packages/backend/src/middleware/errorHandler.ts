@@ -18,21 +18,59 @@ export interface ErrorResponse {
 }
 
 /**
+ * Structured logging helper
+ */
+function logStructured(level: 'error' | 'warn' | 'info' | 'debug', message: string, context: Record<string, any>) {
+  const logEntry = {
+    level,
+    message,
+    timestamp: new Date().toISOString(),
+    ...context,
+  };
+
+  // Use appropriate console method
+  console[level](JSON.stringify(logEntry));
+}
+
+/**
  * Global error handler
  */
 export async function errorHandler(error: FastifyError, request: FastifyRequest, reply: FastifyReply) {
   const requestId = (request as any).requestId || 'unknown';
+  const user = (request as any).user;
   const timestamp = new Date().toISOString();
 
-  // Log error
-  console.error('Error occurred:', {
+  // Build context for structured logging
+  const context: Record<string, any> = {
     requestId,
     method: request.method,
     url: request.url,
-    error: error.message,
-    stack: error.stack,
-    statusCode: error.statusCode
-  });
+    endpoint: request.url.split('?')[0], // Remove query params
+    ip: request.ip || 'unknown',
+    userAgent: request.headers['user-agent'] || 'unknown',
+  };
+
+  // Add user context if available
+  if (user) {
+    context.userId = user.id;
+    context.userTier = user.tier;
+    context.userEmail = user.email;
+  }
+
+  // Add error details
+  context.error = {
+    message: error.message,
+    code: (error as any).code || 'UNKNOWN_ERROR',
+    statusCode: error.statusCode || 500,
+  };
+
+  // Only include stack in development
+  if (process.env.NODE_ENV === 'development') {
+    context.error.stack = error.stack;
+  }
+
+  // Log error with structured format
+  logStructured('error', 'Request error occurred', context);
 
   // Handle different types of errors
   if (error instanceof ValidationError) {
@@ -134,6 +172,17 @@ export async function errorHandler(error: FastifyError, request: FastifyRequest,
   const message = process.env.NODE_ENV === 'production' 
     ? 'Internal server error' 
     : error.message;
+
+  // Log internal errors with full context
+  if (statusCode >= 500) {
+    logStructured('error', 'Internal server error', {
+      ...context,
+      error: {
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      },
+    });
+  }
 
   return reply.code(statusCode).send({
     success: false,

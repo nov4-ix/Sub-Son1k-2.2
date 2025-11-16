@@ -81,7 +81,7 @@ export class SupabaseAuthService {
   async createUserTier(userId: string, tier: string) {
     const tierConfigs = {
       FREE: {
-        monthlyGenerations: 5,
+        monthlyGenerations: 3,
         dailyGenerations: 2,
         maxDuration: 60,
         quality: 'standard',
