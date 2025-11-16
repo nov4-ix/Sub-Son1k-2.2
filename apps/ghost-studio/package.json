@@ -10,8 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --fix",
     "test": "vitest",
-    "test:ui": "vitest --ui",
-    "vercel-build": "npm run build:vercel"
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@super-son1k/shared-hooks": "workspace:*",
