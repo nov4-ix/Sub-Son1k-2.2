@@ -57,8 +57,8 @@ This architecture ensures a resilient, scalable, and user-friendly experience fo
 
 ```bash
 # Clone the repository
-git clone https://github.com/super-son1k/super-son1k-2.0.git
-cd super-son1k-2.0
+git clone https://github.com/super-son1k/super-son1k-2.2.git
+cd super-son1k-2.2
 
 # Install dependencies for all packages in the monorepo
 pnpm install
