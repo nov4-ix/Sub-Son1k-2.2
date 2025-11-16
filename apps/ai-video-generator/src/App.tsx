@@ -1,3 +1,4 @@
+```
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
@@ -52,6 +53,15 @@ export function AIVideoGenerator() {
   const [audioPreview, setAudioPreview] = useState<string | null>(null)
   const [generationProgress, setGenerationProgress] = useState(0)
 
+  // Effect to revoke the object URL when audioPreview changes or component unmounts
+  useEffect(() => {
+    return () => {
+      if (audioPreview) {
+        URL.revokeObjectURL(audioPreview)
+      }
+    }
+  }, [audioPreview])
+
   const videoStyles: VideoStyle[] = [
     {
       id: 'cyberpunk',
@@ -101,6 +111,10 @@ export function AIVideoGenerator() {
     const file = event.target.files?.[0]
     if (file && file.type.startsWith('audio/')) {
       setSelectedAudio(file)
+      // If there's an existing preview URL, revoke it before creating a new one
+      if (audioPreview) {
+        URL.revokeObjectURL(audioPreview)
+      }
       const url = URL.createObjectURL(file)
       setAudioPreview(url)
       toast.success('Audio file uploaded successfully!')
@@ -469,3 +483,4 @@ export function AIVideoGenerator() {
 }
 
 export default AIVideoGenerator
+```
