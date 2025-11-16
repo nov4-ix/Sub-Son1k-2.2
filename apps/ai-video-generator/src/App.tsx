@@ -1,3 +1,4 @@
+```
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
@@ -6,19 +7,12 @@ import {
   Pause,
   Download,
   Share2,
-  Settings,
   Palette,
   Music,
-  Image,
   Film,
-  Sparkles,
   Clock,
   Eye,
-  Heart,
   Volume2,
-  Maximize,
-  RotateCcw,
-  Save,
   Upload
 } from 'lucide-react'
 import toast from 'react-hot-toast'
