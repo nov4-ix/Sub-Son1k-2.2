@@ -179,10 +179,10 @@ export function analyticsRoutes(fastify: FastifyInstance, analyticsService: Anal
             },
             orderBy: {
               _count: {
-                userId: 'desc',
+                userId: 'desc' as const,
               },
-              take: 10,
             },
+            take: 10,
           });
 
           mostActiveUsers = await Promise.all(

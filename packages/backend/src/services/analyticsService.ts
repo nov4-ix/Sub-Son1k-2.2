@@ -514,6 +514,40 @@ export class AnalyticsService {
   /**
    * Get active user count
    */
+  /**
+   * Get recent generations
+   */
+  async getRecentGenerations(hours: number = 24): Promise<any[]> {
+    try {
+      const startDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+      
+      const generations = await this.prisma.generation.findMany({
+        where: {
+          createdAt: {
+            gte: startDate
+          }
+        },
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          createdAt: true,
+          prompt: true,
+          style: true,
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: 1000
+      });
+
+      return generations;
+    } catch (error) {
+      console.error('Failed to get recent generations:', error);
+      return [];
+    }
+  }
+
   async getActiveUserCount(): Promise<number> {
     try {
       const lastHour = new Date(Date.now() - 60 * 60 * 1000);
