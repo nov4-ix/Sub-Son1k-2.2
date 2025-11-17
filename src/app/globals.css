@@ -9,6 +9,13 @@
     --font-inter: 'Inter', 'Poppins', sans-serif;
     --font-orbitron: 'Orbitron', 'Biometric W95', monospace;
     --font-space-mono: 'Space Mono', 'JetBrains Mono', monospace;
+    /* Ochoa Guitarras brand palette */
+    --ochoa-gold: #D4AF37;
+    --ochoa-gold-dark: #9B7F2F;
+    --ochoa-brown-light: #5C3D2E;
+    --ochoa-brown: #3D2817;
+    --ochoa-brown-deep: #2C1810;
+    --ochoa-brown-text: #6B4423;
   }
 }
 
@@ -29,6 +36,22 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  /* Ochoa brand utilities */
+  .ochoa-bg-gold {
+    background: linear-gradient(90deg, var(--ochoa-gold) 0%, #C9A856 50%, var(--ochoa-gold-dark) 100%);
+    color: var(--ochoa-brown-deep);
+  }
+
+  .ochoa-text-brown {
+    color: var(--ochoa-brown);
+  }
+
+  .ochoa-logo-img {
+    width: 240px;
+    height: auto;
+    display: inline-block;
   }
 }
 
