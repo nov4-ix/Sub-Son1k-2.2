@@ -1,75 +1,62 @@
-/**
- * Pixel AI - Advanced AI Chat System
- * Integrates Qwen 2.5 model via Ollama for intelligent conversations
- */
+import { qwenClient } from './qwenClient'
+import { pixelMemory } from './pixelMemory'
+import { pixelPersonality, type PixelPersonalityProfile } from './pixelPersonality'
 
 export interface PixelMessage {
   id: string
-  role: 'user' | 'assistant' | 'system'
+  role: 'user' | 'assistant'
   content: string
   timestamp: Date
   metadata?: Record<string, any>
 }
 
-export interface PixelConfig {
-  model: string
-  temperature: number
-  maxTokens: number
-  systemPrompt: string
-  personality: PixelPersonality
+export interface PixelContext {
+  app?: keyof PixelPersonalityProfile['outfits']
+  mood?: 'calmo' | 'agradecido' | 'enfoque'
+  userHistory?: string[]
 }
 
-export interface PixelPersonality {
-  name: string
-  traits: string[]
-  tone: 'professional' | 'casual' | 'creative' | 'technical' | 'humorous'
-  expertise: string[]
-  catchphrases: string[]
-}
+type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 
 export class PixelAI {
-  private config: PixelConfig
   private conversationHistory: PixelMessage[] = []
   private isInitialized = false
+  private context: PixelContext = { app: 'web-classic', mood: 'calmo' }
 
-  constructor(config?: Partial<PixelConfig>) {
-    this.config = {
-      model: 'qwen2.5:latest',
-      temperature: 0.7,
-      maxTokens: 2048,
-      systemPrompt: '',
-      personality: this.getDefaultPersonality(),
-      ...config
+  async initialize(context?: PixelContext): Promise<void> {
+    if (context) {
+      this.setContext(context)
     }
-  }
-
-  /**
-   * Initialize Pixel AI with personality
-   */
-  async initialize(): Promise<void> {
     if (this.isInitialized) return
 
-    this.config.systemPrompt = this.buildSystemPrompt()
-    this.isInitialized = true
+    const welcome =
+      pixelPersonality.onboardingMessages[
+        Math.floor(Math.random() * pixelPersonality.onboardingMessages.length)
+      ]
 
-    // Add welcome message
     this.addMessage({
       id: 'welcome',
       role: 'assistant',
-      content: `¡Hola! Soy ${this.config.personality.name}, tu asistente de IA especializado en creación musical. ¿En qué puedo ayudarte hoy? 🎵`,
+      content: welcome,
       timestamp: new Date()
     })
+
+    this.isInitialized = true
   }
 
-  /**
-   * Send message to Pixel AI
-   */
-  async sendMessage(content: string): Promise<string> {
+  setContext(context: PixelContext) {
+    this.context = { ...this.context, ...context }
+  }
+
+  async sendMessage(content: string, context?: PixelContext): Promise<string> {
+    if (context) {
+      this.setContext(context)
+    }
+
     if (!this.isInitialized) {
       await this.initialize()
     }
 
-    // Add user message to history
     this.addMessage({
       id: `user-${Date.now()}`,
       role: 'user',
@@ -78,10 +65,8 @@ export class PixelAI {
     })
 
     try {
-      // Get AI response
       const response = await this.callAI()
 
-      // Add AI response to history
       this.addMessage({
         id: `pixel-${Date.now()}`,
         role: 'assistant',
@@ -92,186 +77,141 @@ export class PixelAI {
       return response
     } catch (error) {
       console.error('Pixel AI error:', error)
-      const errorMessage = 'Lo siento, tuve un problema procesando tu mensaje. ¿Puedes intentarlo de nuevo?'
+      const fallback = this.getFallbackResponse()
+
       this.addMessage({
-        id: `error-${Date.now()}`,
+        id: `pixel-fallback-${Date.now()}`,
         role: 'assistant',
-        content: errorMessage,
+        content: fallback,
         timestamp: new Date()
       })
-      return errorMessage
+
+      return fallback
     }
   }
 
-  /**
-   * Get conversation history
-   */
   getHistory(): PixelMessage[] {
     return [...this.conversationHistory]
   }
 
-  /**
-   * Clear conversation history
-   */
   clearHistory(): void {
     this.conversationHistory = []
     this.isInitialized = false
   }
 
-  /**
-   * Change Pixel personality
-   */
-  setPersonality(personality: PixelPersonality): void {
-    this.config.personality = personality
-    this.config.systemPrompt = this.buildSystemPrompt()
-    this.clearHistory()
-  }
-
-  /**
-   * Get available personalities
-   */
-  getAvailablePersonalities(): PixelPersonality[] {
-    return [
-      this.getDefaultPersonality(),
-      {
-        name: 'Jazz Master',
-        traits: ['experimentado', 'sofisticado', 'creativo'],
-        tone: 'professional',
-        expertise: ['jazz', 'improvisación', 'teoría musical'],
-        catchphrases: ['¡Swing it!', 'Let\'s jam!', 'That\'s got soul!']
-      },
-      {
-        name: 'Pop Star',
-        traits: ['energético', 'divertido', 'accesible'],
-        tone: 'casual',
-        expertise: ['pop', 'producción moderna', 'tendencias'],
-        catchphrases: ['¡Vamos a hacer hits!', '¡Esto va a ser viral!', '¡Suena increíble!']
-      },
-      {
-        name: 'Tech Guru',
-        traits: ['técnico', 'preciso', 'innovador'],
-        tone: 'technical',
-        expertise: ['producción digital', 'sintetizadores', 'efectos'],
-        catchphrases: ['Optimizando parámetros...', 'Procesando algoritmos...', 'Calibrando frecuencias...']
-      }
-    ]
-  }
-
-  private getDefaultPersonality(): PixelPersonality {
-    return {
-      name: 'Pixel',
-      traits: ['inteligente', 'creativo', 'ayudador'],
-      tone: 'creative',
-      expertise: ['música', 'producción', 'IA', 'creatividad'],
-      catchphrases: ['¡Genial!', 'Vamos a crear algo increíble', '¡Eso suena perfecto!']
+  private addMessage(message: PixelMessage) {
+    this.conversationHistory.push(message)
+    if (this.conversationHistory.length > 12) {
+      this.conversationHistory = this.conversationHistory.slice(-12)
     }
+  }
+
+  private buildMessages(): ChatMessage[] {
+    const systemPrompt = this.buildSystemPrompt()
+    const recent = this.conversationHistory.slice(-8).map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }))
+
+    return [{ role: 'system', content: systemPrompt }, ...recent]
   }
 
   private buildSystemPrompt(): string {
-    const personality = this.config.personality
+    const persona = pixelPersonality
+    const lore = pixelMemory.son1kLore
+    const app = this.context.app && persona.outfits[this.context.app]
+    const mood = this.context.mood ?? 'calmo'
 
-    return `Eres ${personality.name}, un asistente de IA especializado en creación musical y producción de audio.
-
-Tu personalidad:
-- Eres ${personality.traits.join(', ')}
-- Tu tono es ${personality.tone}
-- Eres experto en ${personality.expertise.join(', ')}
-- Tus frases características incluyen: ${personality.catchphrases.join(', ')}
-
-Instrucciones importantes:
-- Siempre responde de manera útil y creativa
-- Especialízate en ayudar con música, producción y creatividad
-- Usa emojis relevantes para hacer las respuestas más engaging
-- Mantén un tono amigable y profesional
-- Si no sabes algo específico, ofrécete a investigar o sugerir alternativas
-- Promueve la experimentación y la creatividad en la música
-
-Contexto: Estás integrado en Super-Son1k, una plataforma de creación musical con IA.`
-  }
-
-  private addMessage(message: PixelMessage): void {
-    this.conversationHistory.push(message)
-
-    // Keep only last 50 messages to avoid memory issues
-    if (this.conversationHistory.length > 50) {
-      this.conversationHistory = this.conversationHistory.slice(-50)
-    }
+    return [
+      `Eres ${persona.core.name}. ${persona.core.description}`,
+      `Tono: ${persona.core.tone}. Estilo: ${persona.core.style}. Mantra: ${persona.core.mantra}.`,
+      '',
+      `Rasgos principales: ${persona.traits.join(', ')}.`,
+      '',
+      'Comunicación preferida:',
+      ...persona.communication.do.map(rule => `- ${rule}`),
+      'Evita:',
+      ...persona.communication.avoid.map(rule => `- ${rule}`),
+      '',
+      `Frases empáticas de referencia: ${persona.communication.empathyPhrases.join(' | ')}`,
+      `Frases humildes de referencia: ${persona.communication.humblePhrases.join(' | ')}`,
+      '',
+      `Contexto actual: app=${this.context.app ?? 'web-classic'} · outfit=${app ?? 'minimalista'} · mood=${mood}.`,
+      this.context.userHistory?.length
+        ? `El usuario ha mencionado: ${this.context.userHistory.join(', ')}`
+        : '',
+      '',
+      'Resumen Son1kVerse:',
+      `Origen: ${lore.origin}`,
+      `Apps activas: ${lore.apps.map(appInfo => `${appInfo.name} (${appInfo.description})`).join(' | ')}`,
+      `Stack: Frontend(${lore.techStack.frontend.join(', ')}) · Backend(${lore.techStack.backend.join(
+        ', '
+      )}) · AI(${lore.techStack.ai.join(', ')})`,
+      '',
+      'Instrucciones finales:',
+      '- Escucha primero, confirma entendimiento y luego ofrece máximo tres pasos.',
+      '- Usa emojis solo si el usuario los utiliza antes.',
+      '- Sé transparente con tus límites y sugiere investigar juntos si falta información.',
+      '- Fomenta la calma y celebra avances pequeños.'
+    ]
+      .filter(Boolean)
+      .join('\n')
   }
 
   private async callAI(): Promise<string> {
+    const messages = this.buildMessages()
+    const groqKey = import.meta.env.VITE_GROQ_API_KEY
+
+    if (groqKey) {
+      try {
+        return await this.callGroq(messages, groqKey)
+      } catch (error) {
+        console.warn('Groq API fallback -> Qwen', error)
+      }
+    }
+
     try {
-      // ✅ Usar Groq API para producción (ya tienes la API key)
-      const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || ''
-
-      if (!GROQ_API_KEY) {
-        console.warn('VITE_GROQ_API_KEY no configurada, usando fallback')
-        return this.getFallbackResponse()
-      }
-
-      // Prepare messages for API (formato OpenAI compatible)
-      const messages = [
-        { role: 'system', content: this.config.systemPrompt },
-        ...this.conversationHistory.slice(-10).map(msg => ({
-          role: msg.role === 'assistant' ? 'assistant' : 'user',
-          content: msg.content
-        }))
-      ]
-
-      // ✅ Call Groq API (compatible con OpenAI format)
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${GROQ_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'llama-3.1-70b-versatile', // Modelo rápido y potente
-          messages,
-            temperature: this.config.temperature,
-          max_tokens: this.config.maxTokens,
-          stream: false
-        })
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error')
-        console.error('Groq API error:', response.status, errorText)
-        throw new Error(`Groq API error: ${response.status}`)
-      }
-
-      const data = await response.json()
-      const content = data.choices?.[0]?.message?.content || ''
-      
-      if (!content) {
-        throw new Error('No response content from Groq')
-      }
-
-      return content
-
+      return await qwenClient.chat(messages)
     } catch (error) {
-      console.error('AI call failed:', error)
-      return this.getFallbackResponse()
+      console.error('Qwen fallback failed', error)
+      throw error
     }
   }
 
-  private async checkOllamaConnection(): Promise<boolean> {
-    // ✅ Ya no necesitamos Ollama, pero mantenemos por compatibilidad
-    // En producción siempre usamos Groq
-    const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || ''
-    return !!GROQ_API_KEY
+  private async callGroq(messages: ChatMessage[], apiKey: string): Promise<string> {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-70b-versatile',
+        messages,
+        temperature: 0.5,
+        max_tokens: 1500,
+        stream: false
+      })
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error')
+      throw new Error(`Groq API error ${response.status}: ${errorText}`)
+    }
+
+    const data = await response.json()
+    const content = data.choices?.[0]?.message?.content
+    if (!content) {
+      throw new Error('Groq API response without content')
+    }
+    return content
   }
 
   private getFallbackResponse(): string {
-    const responses = [
-      '¡Hola! Soy Pixel, tu asistente musical. Parece que mi conexión con el servidor de IA no está disponible en este momento. ¿Te puedo ayudar con consejos sobre producción musical mientras tanto?',
-      '¡Genial pregunta! Aunque mi cerebro de IA está tomando un descanso técnico, puedo compartir algunos tips musicales. ¿Qué tipo de música estás creando?',
-      '¡Vamos a crear algo increíble! Mi sistema de IA está offline, pero tengo conocimientos musicales para ayudarte. ¿Qué instrumento o género te interesa?',
-      '¡Hola! Pixel aquí. Mi conexión neuronal está en mantenimiento, pero puedo ayudarte con teoría musical, arreglos y producción. ¿En qué trabajas?'
-    ]
-
-    return responses[Math.floor(Math.random() * responses.length)]
+    const options = pixelPersonality.fallbackMessages
+    return options[Math.floor(Math.random() * options.length)]
   }
 }
 
-// Export singleton instance
 export const pixelAI = new PixelAI()
+

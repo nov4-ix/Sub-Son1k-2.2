@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, X, Sparkles, Minimize2, Maximize2 } from 'lucide-react'
 import { pixelAI } from '../lib/pixelAI'
+import { pixelPersonality } from '../lib/pixelPersonality'
+
+type PixelAppContext = keyof typeof pixelPersonality.outfits
 
 interface Message {
   id: string
@@ -11,12 +14,16 @@ interface Message {
 }
 
 interface PixelChatAdvancedProps {
-  currentApp?: string
+  currentApp?: PixelAppContext
   isOpen: boolean
   onClose: () => void
 }
 
-export function PixelChatAdvanced({ currentApp = 'web-classic', isOpen, onClose }: PixelChatAdvancedProps) {
+export function PixelChatAdvanced({
+  currentApp = 'web-classic',
+  isOpen,
+  onClose
+}: PixelChatAdvancedProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -30,6 +37,10 @@ export function PixelChatAdvanced({ currentApp = 'web-classic', isOpen, onClose 
       addWelcomeMessage()
     }
   }, [])
+
+  useEffect(() => {
+    pixelAI.setContext({ app: currentApp })
+  }, [currentApp])
 
   useEffect(() => {
     scrollToBottom()
@@ -64,12 +75,7 @@ export function PixelChatAdvanced({ currentApp = 'web-classic', isOpen, onClose 
   }
 
   const addWelcomeMessage = () => {
-    const welcomeMessages = [
-      "¡Hey! Soy Pixel, tu compañero digital. ¿En qué puedo ayudarte hoy?",
-      "¡Hola! Aquí Pixel. ¿Qué misterio vamos a resolver juntos?",
-      "¡Saludos! Pixel al servicio. ¿Listo para crear algo increíble?",
-    ]
-
+    const welcomeMessages = pixelPersonality.onboardingMessages
     const welcome = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)]
 
     setMessages([
@@ -97,7 +103,7 @@ export function PixelChatAdvanced({ currentApp = 'web-classic', isOpen, onClose 
     setIsLoading(true)
 
     try {
-      const response = await pixelAI.sendMessage(userMessage.content)
+      const response = await pixelAI.sendMessage(userMessage.content, { app: currentApp })
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
