@@ -1,16 +1,6 @@
-# Vercel Configuration for Web Classic
-# Deploy from: apps/web-classic
-
 {
-  "buildCommand": "cd ../.. && pnpm install && cd apps/web-classic && pnpm build",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "pnpm install",
-  "framework": "vite",
-  "env": {
-    "VITE_GROQ_API_KEY": "@groq-api-key",
-    "VITE_BACKEND_URL": "@backend-url",
-    "VITE_BACKEND_SECRET": "@backend-secret",
-    "VITE_STRIPE_PUBLISHABLE_KEY": "@stripe-publishable-key",
-    "VITE_NEXUS_URL": "https://nexus.son1kvers3.com"
-  }
+  "installCommand": "npm install --legacy-peer-deps",
+  "framework": "vite"
 }

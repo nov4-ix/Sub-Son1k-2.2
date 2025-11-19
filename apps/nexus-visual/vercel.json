@@ -1,13 +1,6 @@
-# Vercel Configuration for Nexus Visual
-# Deploy from: apps/nexus-visual
-
 {
-    "buildCommand": "cd ../.. && pnpm install && cd apps/nexus-visual && pnpm build",
+    "buildCommand": "npm run build",
     "outputDirectory": "dist",
-    "installCommand": "pnpm install",
-    "framework": "vite",
-    "env": {
-        "VITE_BACKEND_URL": "@backend-url",
-        "VITE_GROQ_API_KEY": "@groq-api-key"
-    }
+    "installCommand": "npm install --legacy-peer-deps",
+    "framework": "vite"
 }
