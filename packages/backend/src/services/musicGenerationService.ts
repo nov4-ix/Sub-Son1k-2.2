@@ -28,7 +28,7 @@ export interface GenerationResult {
 export class MusicGenerationService {
   private axiosInstances: Map<string, AxiosInstance> = new Map();
 
-  constructor(private tokenManager: TokenManager) {}
+  constructor(private tokenManager: TokenManager) { }
 
   /**
    * Generate music using AI generation API
@@ -45,7 +45,7 @@ export class MusicGenerationService {
 
       // Get a healthy token
       const tokenData = await this.tokenManager.getHealthyToken(request.userId);
-      
+
       if (!tokenData) {
         return {
           status: 'failed',
@@ -74,14 +74,14 @@ export class MusicGenerationService {
       if (response.status === 200 && response.data) {
         // API devuelve taskId o id
         const generationTaskId = response.data.taskId || response.data.id || response.data.task_id;
-        
+
         if (!generationTaskId) {
           return {
             status: 'failed',
             error: 'No taskId in API response'
           };
         }
-        
+
         // Update token usage
         await this.tokenManager.updateTokenUsage(tokenData.tokenId, {
           endpoint: '/generate',
@@ -119,7 +119,7 @@ export class MusicGenerationService {
     try {
       // Get a healthy token
       const tokenData = await this.tokenManager.getHealthyToken();
-      
+
       if (!tokenData) {
         return {
           status: 'failed',
@@ -129,8 +129,8 @@ export class MusicGenerationService {
 
       // Polling endpoint para verificar estado
       // ✅ VALIDAR VARIABLE DE ENTORNO
-      const pollingUrl = env.GENERATION_POLLING_URL || env.SUNO_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
-      
+      const pollingUrl = env.GENERATION_POLLING_URL || env.NEURAL_ENGINE_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
+
       const response = await axios.get(`${pollingUrl}/get_mj_status/${generationTaskId}`, {
         timeout: 10000,
         headers: {
@@ -144,7 +144,7 @@ export class MusicGenerationService {
 
       if (response.status === 200 && response.data) {
         const data = response.data;
-        
+
         // Update token usage
         await this.tokenManager.updateTokenUsage(tokenData.tokenId, {
           endpoint: `/get_mj_status/${generationTaskId}`,
@@ -201,7 +201,7 @@ export class MusicGenerationService {
     try {
       // Get a healthy token
       const tokenData = await this.tokenManager.getHealthyToken();
-      
+
       if (!tokenData) {
         return {
           status: 'failed',
@@ -210,8 +210,8 @@ export class MusicGenerationService {
       }
 
       // Polling endpoint para verificar estado de cover
-      const pollingUrl = env.GENERATION_POLLING_URL || env.SUNO_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
-      
+      const pollingUrl = env.GENERATION_POLLING_URL || env.NEURAL_ENGINE_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
+
       const response = await axios.get(`${pollingUrl}/get_mj_status/${generationTaskId}`, {
         timeout: 10000,
         headers: {
@@ -225,7 +225,7 @@ export class MusicGenerationService {
 
       if (response.status === 200 && response.data) {
         const data = response.data;
-        
+
         // Update token usage
         await this.tokenManager.updateTokenUsage(tokenData.tokenId, {
           endpoint: `/get_mj_status/${generationTaskId}`,
@@ -280,7 +280,7 @@ export class MusicGenerationService {
    */
   private createAxiosInstance(token: string): AxiosInstance {
     // ✅ VALIDAR VARIABLE DE ENTORNO (prevenir crashes)
-    const baseURL = env.GENERATION_API_URL || env.SUNO_API_URL || 'https://ai.imgkits.com/suno';
+    const baseURL = env.GENERATION_API_URL || env.NEURAL_ENGINE_API_URL || 'https://ai.imgkits.com/suno';
     return axios.create({
       baseURL,
       timeout: 30000,
@@ -321,7 +321,7 @@ export class MusicGenerationService {
    */
   private estimateGenerationTime(duration: number, quality: string): number {
     let baseTime = duration * 2; // Base 2x duration
-    
+
     // Adjust based on quality
     switch (quality.toLowerCase()) {
       case 'standard':
@@ -350,7 +350,7 @@ export class MusicGenerationService {
   async healthCheck(): Promise<boolean> {
     try {
       const tokenData = await this.tokenManager.getHealthyToken();
-      
+
       if (!tokenData) {
         return false;
       }

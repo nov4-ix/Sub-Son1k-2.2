@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react'
 import dynamic from 'next/dynamic'
-import { Music, Sparkles, Play, Download, Loader2, Mic2, User, Users, Shuffle, Wand2, Settings, BookOpen, Heart, Zap, Palette, Pause, Volume2, VolumeX, SkipForward, SkipBack } from 'lucide-react'
+import { Music, Sparkles, Play, Download, Loader2, Mic2, User, Users, Shuffle, Wand2, Settings, BookOpen, Heart, Zap, Palette, Pause, Volume2, VolumeX, SkipForward, SkipBack, Radio } from 'lucide-react'
 import { useGeneratorStore } from '../../lib/store/generatorStore'
 import { useGenerationProgress } from '../../lib/hooks/useGenerationProgress'
+import { NexusCard } from '../../components/ui/NexusCard'
+import { AudioVisualizer } from '../../components/ui/AudioVisualizer'
 
 // Lazy load heavy components with code splitting
 const Knob = dynamic(() => import('../../lib/components/ui/Knob').then(mod => ({ default: mod.Knob })), {
@@ -12,16 +14,13 @@ const Knob = dynamic(() => import('../../lib/components/ui/Knob').then(mod => ({
   ssr: false
 })
 
-// Note: Lazy loading removed as components are not used in this page
-// TwoTrackPlayer and motion are not imported here
-
 export default function GeneratorPage() {
   const { knobs, setKnobs, isCustomMode, toggleMode } = useGeneratorStore()
 
   const [lyricsInput, setLyricsInput] = useState('')
   const [generatedLyrics, setGeneratedLyrics] = useState('')
   const [musicPrompt, setMusicPrompt] = useState('')
-  const [voice, setVoice] = useState<'male'|'female'|'random'|'duet'>('male')
+  const [voice, setVoice] = useState<'male' | 'female' | 'random' | 'duet'>('male')
   const [instrumental, setInstrumental] = useState(false)
   const [isGeneratingLyrics, setIsGeneratingLyrics] = useState(false)
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false)
@@ -32,7 +31,7 @@ export default function GeneratorPage() {
   const [generationMessage, setGenerationMessage] = useState('')
   const [cancelGeneration, setCancelGeneration] = useState(false)
   const [currentGenerationId, setCurrentGenerationId] = useState<string | null>(null)
-  
+
   // WebSocket integration for real-time progress
   const { progress: wsProgress, isConnected: wsConnected } = useGenerationProgress(currentGenerationId)
 
@@ -41,7 +40,7 @@ export default function GeneratorPage() {
     if (wsProgress) {
       setGenerationProgress(wsProgress.progress)
       setGenerationMessage(wsProgress.message || 'Generando música...')
-      
+
       if (wsProgress.status === 'completed' && wsProgress.audioUrl) {
         setTrackUrls([wsProgress.audioUrl])
         setIsGeneratingMusic(false)
@@ -252,17 +251,15 @@ export default function GeneratorPage() {
         // Fallback to polling if WebSocket not connected
         if (!wsConnected) {
           const cleanup = pollTrackStatus(data.trackId || data.sunoId, data.generationId)
-          // ✅ Guardar cleanup para cancelar si el componente se desmonta
           if (cleanup) {
-            // Cleanup se manejará automáticamente cuando el componente se desmonte
+            // Cleanup handled automatically
           }
         }
       } else if (data.trackId || data.sunoId) {
         // Fallback to polling for old API format
         const cleanup = pollTrackStatus(data.trackId || data.sunoId)
-        // ✅ Guardar cleanup para cancelar si el componente se desmonta
         if (cleanup) {
-          // Cleanup se manejará automáticamente cuando el componente se desmonte
+          // Cleanup handled automatically
         }
       } else {
         throw new Error('No se generó música')
@@ -275,7 +272,6 @@ export default function GeneratorPage() {
   }
 
   const pollTrackStatus = useCallback(async (trackId: string, generationId?: string) => {
-    // ✅ Protección contra race conditions
     let cancelled = false
     let attempts = 0
     const startTime = Date.now()
@@ -287,19 +283,16 @@ export default function GeneratorPage() {
       return 10000
     }
     const checkStatus = async (): Promise<boolean> => {
-      // ✅ Verificar si fue cancelado antes de continuar
       if (cancelled) return false
       try {
         attempts++
         const elapsed = Date.now() - startTime
-        const elapsedSeconds = Math.floor(elapsed / 1000)
         if (elapsed > maxTime) {
           throw new Error('La generación tardó más de 5 minutos. Por favor, intenta de nuevo.')
         }
-        
-        // Preferir generationId si está disponible (usa backend)
-        const queryParam = generationId 
-          ? `generationId=${generationId}&trackId=${trackId || ''}` 
+
+        const queryParam = generationId
+          ? `generationId=${generationId}&trackId=${trackId || ''}`
           : `trackId=${trackId}`
         const res = await fetch(`/api/track-status?${queryParam}`)
         const data = await res.json()
@@ -358,7 +351,6 @@ export default function GeneratorPage() {
           throw new Error('La generación tardó más de 3 minutos. La música podría estar procesándose aún. Intenta de nuevo en unos momentos.')
         }
       } catch (err: any) {
-        // ✅ Solo actualizar estado si no fue cancelado
         if (!cancelled) {
           setError(err.message || 'Error desconocido en la generación')
           setTimeout(() => setError(''), 8000)
@@ -368,46 +360,54 @@ export default function GeneratorPage() {
         }
       }
     }
-    
-    // Iniciar polling
+
     checkStatus()
-    
-    // ✅ Retornar función de cancelación
+
     return () => {
       cancelled = true
     }
   }, [wsConnected])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0A0C10] via-[#1a1d29] to-[#0A0C10] relative overflow-hidden">
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-[#B84DFF] rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-[#00FFE7] rounded-full blur-3xl animate-pulse" style={{animationDelay:'1s'}}></div>
+    <div className="min-h-screen bg-[#0A0C10] relative overflow-hidden text-white font-sans selection:bg-[#00FFE7] selection:text-black">
+      {/* Animated Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[#B84DFF]/20 rounded-full blur-[120px] animate-pulse"></div>
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-[#00FFE7]/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5"></div>
       </div>
+
       <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
-        <div className="text-center mb-8 md:mb-12">
-          <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4">
-            <Music className="w-8 h-8 md:w-12 md:h-12 text-[#00FFE7]"/>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-[#00FFE7] via-[#B84DFF] to-[#9AF7EE] bg-clip-text text-transparent font-mono tracking-wider">THE GENERATOR</h1>
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center justify-center gap-3 mb-4 relative">
+            <div className="absolute inset-0 bg-[#00FFE7]/20 blur-xl rounded-full"></div>
+            <Music className="w-10 h-10 text-[#00FFE7] relative z-10" />
+            <h1 className="text-5xl md:text-7xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#00FFE7] via-white to-[#B84DFF] font-mono tracking-tighter relative z-10">
+              THE GENERATOR
+            </h1>
           </div>
-          <p className="text-[#9AF7EE] text-sm md:text-base lg:text-lg px-4">Crea música profesional con IA</p>
+          <p className="text-[#9AF7EE] text-lg font-light tracking-widest uppercase opacity-80">
+            Son1kvers3 AI Audio Synthesis
+          </p>
         </div>
+
         {error && (
-          <div className="mb-6 bg-red-500/20 border-2 border-red-500 rounded-2xl p-4 backdrop-blur-sm">
-            <p className="text-red-200 text-center font-semibold">{error}</p>
+          <div className="mb-8 bg-red-500/10 border border-red-500/50 rounded-2xl p-4 backdrop-blur-md animate-shake">
+            <p className="text-red-200 text-center font-mono flex items-center justify-center gap-2">
+              <span className="text-red-500">⚠</span> {error}
+            </p>
           </div>
         )}
 
-        <div className="bg-[#1a1d29]/50 backdrop-blur-xl rounded-3xl p-6 border-2 border-[#00FFE7]/20 shadow-2xl mb-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-gradient-to-br from-[#B84DFF] to-[#00FFE7] rounded-xl">
-              <Settings className="w-6 h-6 text-white" />
-            </div>
-            <h3 className="text-2xl font-bold text-white">Control Literario</h3>
-            <span className="text-sm text-[#9AF7EE]">Control total del estilo</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3 md:gap-4">
+        {/* Control Literario */}
+        <NexusCard
+          title="Control Literario"
+          icon={<Settings className="w-6 h-6 text-white" />}
+          className="mb-8"
+          borderColor="border-[#B84DFF]/30"
+        >
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
             <Knob label="Intensidad Emocional" value={knobs.emotionalIntensity} onChange={(value) => setKnobs({ emotionalIntensity: value })} icon={<Heart className="w-4 h-4" />} color="text-[#FF1744]" tooltip="Sutil → Dramático" />
             <Knob label="Estilo Poético" value={knobs.poeticStyle} onChange={(value) => setKnobs({ poeticStyle: value })} icon={<BookOpen className="w-4 h-4" />} color="text-[#B84DFF]" tooltip="Simple → Sofisticado" />
             <Knob label="Complejidad de Rimas" value={knobs.rhymeComplexity} onChange={(value) => setKnobs({ rhymeComplexity: value })} icon={<Zap className="w-4 h-4" />} color="text-[#FFD700]" tooltip="Libre → Complejo" />
@@ -415,220 +415,258 @@ export default function GeneratorPage() {
             <Knob label="Estilo de Lenguaje" value={knobs.languageStyle} onChange={(value) => setKnobs({ languageStyle: value })} icon={<Palette className="w-4 h-4" />} color="text-[#9AF7EE]" tooltip="Coloquial → Formal" />
             <Knob label="Intensidad del Tema" value={knobs.themeIntensity} onChange={(value) => setKnobs({ themeIntensity: value })} icon={<Zap className="w-4 h-4" />} color="text-[#B84DFF]" tooltip="Sutil → Intenso" />
           </div>
-        </div>
+        </NexusCard>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
-          <div className="bg-[#1a1d29]/50 backdrop-blur-xl rounded-3xl p-6 border-2 border-[#00FFE7]/20 shadow-2xl hover:border-[#B84DFF]/50 transition-all">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 bg-gradient-to-br from-[#B84DFF] to-[#00FFE7] rounded-xl">
-                <Mic2 className="w-6 h-6 text-white"/>
-              </div>
-              <h2 className="text-2xl font-bold text-white">Letra</h2>
-            </div>
-            <textarea value={lyricsInput} onChange={e=>setLyricsInput(e.target.value||'')} disabled={instrumental||isGeneratingLyrics} placeholder="Escribe palabras o ideas..." className="w-full h-40 px-4 py-3 bg-black/30 border-2 border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 disabled:opacity-50 resize-none mb-4"/>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Letra Section */}
+          <NexusCard
+            title="Letra"
+            icon={<Mic2 className="w-6 h-6 text-white" />}
+            borderColor="border-[#00FFE7]/30"
+          >
+            <textarea
+              value={lyricsInput}
+              onChange={e => setLyricsInput(e.target.value || '')}
+              disabled={instrumental || isGeneratingLyrics}
+              placeholder="Escribe palabras o ideas..."
+              className="w-full h-48 px-4 py-3 bg-[#0A0C10]/50 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-[#00FFE7] focus:ring-1 focus:ring-[#00FFE7]/50 disabled:opacity-50 resize-none mb-4 font-mono text-sm transition-all"
+            />
             {generatedLyrics && (
-              <div className="mb-4 p-4 bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-xl border border-purple-500/30 max-h-60 overflow-y-auto">
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="w-4 h-4 text-purple-400"/>
-                  <p className="text-sm font-semibold text-purple-300">Letra Generada</p>
+              <div className="mb-4 p-4 bg-[#B84DFF]/10 rounded-xl border border-[#B84DFF]/30 max-h-60 overflow-y-auto custom-scrollbar">
+                <div className="flex items-center gap-2 mb-2 sticky top-0 bg-[#B84DFF]/10 backdrop-blur-md p-2 rounded-lg -mx-2 -mt-2">
+                  <Sparkles className="w-4 h-4 text-[#B84DFF]" />
+                  <p className="text-xs font-bold text-[#B84DFF] uppercase tracking-wider">AI Generated Lyrics</p>
                 </div>
-                <pre className="text-white whitespace-pre-wrap text-sm">{generatedLyrics}</pre>
+                <pre className="text-gray-200 whitespace-pre-wrap text-sm font-mono leading-relaxed">{generatedLyrics}</pre>
               </div>
             )}
-            <button onClick={handleGenerateLyrics} disabled={isGeneratingLyrics||instrumental} className="w-full bg-gradient-to-r from-[#B84DFF] to-[#00FFE7] hover:from-[#B84DFF]/80 hover:to-[#00FFE7]/80 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 disabled:hover:scale-100 flex items-center justify-center gap-2">
-              {isGeneratingLyrics ? <><Loader2 className="w-5 h-5 animate-spin"/><span>Generando...</span></> : <><Wand2 className="w-5 h-5"/><span>Generar Letra</span></>}
+            <button
+              onClick={handleGenerateLyrics}
+              disabled={isGeneratingLyrics || instrumental}
+              className="w-full bg-gradient-to-r from-[#B84DFF] to-[#00FFE7] hover:from-[#B84DFF]/80 hover:to-[#00FFE7]/80 disabled:from-gray-800 disabled:to-gray-900 text-black font-bold py-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:hover:scale-100 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(184,77,255,0.3)]"
+            >
+              {isGeneratingLyrics ? <><Loader2 className="w-5 h-5 animate-spin" /><span>PROCESANDO...</span></> : <><Wand2 className="w-5 h-5" /><span>GENERAR LETRA</span></>}
             </button>
-          </div>
-          <div className="bg-[#1a1d29]/50 backdrop-blur-xl rounded-3xl p-6 border-2 border-[#00FFE7]/20 shadow-2xl hover:border-[#9AF7EE]/50 transition-all">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 bg-gradient-to-br from-[#00FFE7] to-[#9AF7EE] rounded-xl">
-                <Music className="w-6 h-6 text-white"/>
-              </div>
-              <h2 className="text-2xl font-bold text-white">Estilo</h2>
-            </div>
+          </NexusCard>
+
+          {/* Estilo Section */}
+          <NexusCard
+            title="Estilo Musical"
+            icon={<Music className="w-6 h-6 text-white" />}
+            borderColor="border-[#9AF7EE]/30"
+          >
             <textarea
               value={musicPrompt}
-              onChange={e=>setMusicPrompt(e.target.value||'')}
+              onChange={e => setMusicPrompt(e.target.value || '')}
               disabled={isGeneratingPrompt}
-              placeholder="Describe el estilo musical..."
+              placeholder="Describe el estilo musical (ej: Cyberpunk Dark Synthwave con bajos profundos...)"
               maxLength={180}
-              className="w-full h-40 px-4 py-3 bg-black/30 border-2 border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 disabled:opacity-50 resize-none mb-4"
+              className="w-full h-48 px-4 py-3 bg-[#0A0C10]/50 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-[#00FFE7] focus:ring-1 focus:ring-[#00FFE7]/50 disabled:opacity-50 resize-none mb-4 font-mono text-sm transition-all"
             />
-            <div className="text-right text-sm text-gray-400 mb-2">
-              {musicPrompt.length}/180 caracteres
+            <div className="text-right text-xs text-gray-500 mb-2 font-mono">
+              {musicPrompt.length}/180 CHARS
             </div>
-            <button onClick={handleGeneratePrompt} disabled={isGeneratingPrompt} className="w-full bg-gradient-to-r from-[#00FFE7] to-[#9AF7EE] hover:from-[#00FFE7]/80 hover:to-[#9AF7EE]/80 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2">
-              {isGeneratingPrompt ? <><Loader2 className="w-5 h-5 animate-spin"/><span>Generando...</span></> : <><Sparkles className="w-5 h-5"/><span>Prompt Creativo</span></>}
+            <button
+              onClick={handleGeneratePrompt}
+              disabled={isGeneratingPrompt}
+              className="w-full bg-gradient-to-r from-[#00FFE7] to-[#9AF7EE] hover:from-[#00FFE7]/80 hover:to-[#9AF7EE]/80 disabled:from-gray-800 disabled:to-gray-900 text-black font-bold py-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,231,0.3)]"
+            >
+              {isGeneratingPrompt ? <><Loader2 className="w-5 h-5 animate-spin" /><span>OPTIMIZANDO...</span></> : <><Sparkles className="w-5 h-5" /><span>MEJORAR PROMPT</span></>}
             </button>
-          </div>
+          </NexusCard>
         </div>
 
-        <div className="bg-[#1a1d29]/50 backdrop-blur-xl rounded-3xl p-6 border-2 border-[#00FFE7]/20 shadow-2xl mb-6">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <Users className="w-6 h-6 text-[#B84DFF]"/>Configuración
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-2 md:gap-4">
-            <button onClick={()=>setVoice('male')} disabled={instrumental} className={`p-3 md:p-4 rounded-xl text-sm md:text-base font-semibold border-2 flex items-center justify-center gap-2 ${voice==='male'&&!instrumental?'bg-gradient-to-br from-[#00FFE7] to-[#9AF7EE] border-[#00FFE7] text-white scale-105':'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'} disabled:opacity-50`}>
-              <User className="w-5 h-5"/><span>Hombre</span>
-            </button>
-            <button onClick={()=>setVoice('female')} disabled={instrumental} className={`p-4 rounded-xl font-semibold border-2 flex items-center justify-center gap-2 ${voice==='female'&&!instrumental?'bg-gradient-to-br from-[#B84DFF] to-[#FF1744] border-[#B84DFF] text-white scale-105':'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'} disabled:opacity-50`}>
-              <User className="w-5 h-5"/><span>Mujer</span>
-            </button>
-            <button onClick={()=>setVoice('random')} disabled={instrumental} className={`p-4 rounded-xl font-semibold border-2 flex items-center justify-center gap-2 ${voice==='random'&&!instrumental?'bg-gradient-to-br from-[#FFD700] to-[#B84DFF] border-[#FFD700] text-white scale-105':'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'} disabled:opacity-50`}>
-              <Shuffle className="w-5 h-5"/><span>Random</span>
-            </button>
-            <button onClick={()=>setVoice('duet')} disabled={instrumental} className={`p-4 rounded-xl font-semibold border-2 flex items-center justify-center gap-2 ${voice==='duet'&&!instrumental?'bg-gradient-to-br from-[#B84DFF] to-[#00FFE7] border-[#B84DFF] text-white scale-105':'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'} disabled:opacity-50`}>
-              <Users className="w-5 h-5"/><span>Dueto</span>
-            </button>
-            <button onClick={()=>{setInstrumental(!instrumental);if(!instrumental){setGeneratedLyrics('');setLyricsInput('')}}}className={`p-4 rounded-xl font-semibold border-2 flex items-center justify-center gap-2 ${instrumental?'bg-gradient-to-br from-[#FF1744] to-[#FFD700] border-[#FF1744] text-white scale-105':'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'}`}>
-              <Music className="w-5 h-5"/><span>Instrumental</span>
+        {/* Configuration */}
+        <NexusCard className="mb-8">
+          <div className="flex items-center gap-3 mb-6">
+            <Users className="w-6 h-6 text-[#B84DFF]" />
+            <h3 className="text-xl font-bold text-white">Configuración de Voz</h3>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-3">
+            {[
+              { id: 'male', icon: User, label: 'Hombre', color: 'from-[#00FFE7] to-[#9AF7EE]' },
+              { id: 'female', icon: User, label: 'Mujer', color: 'from-[#B84DFF] to-[#FF1744]' },
+              { id: 'random', icon: Shuffle, label: 'Random', color: 'from-[#FFD700] to-[#B84DFF]' },
+              { id: 'duet', icon: Users, label: 'Dueto', color: 'from-[#B84DFF] to-[#00FFE7]' },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => setVoice(opt.id as any)}
+                disabled={instrumental}
+                className={`p-4 rounded-xl text-sm font-bold border flex items-center justify-center gap-2 transition-all ${voice === opt.id && !instrumental
+                    ? `bg-gradient-to-br ${opt.color} border-transparent text-black shadow-[0_0_15px_rgba(255,255,255,0.2)] scale-105`
+                    : 'bg-[#1a1d29]/30 border-white/10 text-gray-400 hover:bg-[#1a1d29]/50 hover:border-white/20'
+                  } disabled:opacity-30 disabled:scale-100`}
+              >
+                <opt.icon className="w-4 h-4" /><span>{opt.label}</span>
+              </button>
+            ))}
+            <button
+              onClick={() => { setInstrumental(!instrumental); if (!instrumental) { setGeneratedLyrics(''); setLyricsInput('') } }}
+              className={`p-4 rounded-xl text-sm font-bold border flex items-center justify-center gap-2 transition-all ${instrumental
+                  ? 'bg-gradient-to-br from-[#FF1744] to-[#FFD700] border-transparent text-black shadow-[0_0_15px_rgba(255,23,68,0.3)] scale-105'
+                  : 'bg-[#1a1d29]/30 border-white/10 text-gray-400 hover:bg-[#1a1d29]/50 hover:border-white/20'
+                }`}
+            >
+              <Music className="w-4 h-4" /><span>Instrumental</span>
             </button>
           </div>
-        </div>
+        </NexusCard>
 
-        <button onClick={handleGenerateMusic} disabled={isGeneratingMusic} className="w-full bg-gradient-to-r from-[#00FFE7] via-[#B84DFF] to-[#FF1744] hover:from-[#00FFE7]/80 hover:via-[#B84DFF]/80 hover:to-[#FF1744]/80 disabled:from-gray-600 disabled:to-gray-700 text-white text-xl font-black py-8 rounded-3xl transition-all transform hover:scale-105 disabled:hover:scale-100 shadow-2xl flex items-center justify-center gap-3 mb-6 font-mono">
-          {isGeneratingMusic ? <><Loader2 className="w-8 h-8 animate-spin"/><span>Generando {generationProgress}%</span></> : <><Play className="w-8 h-8"/><span>The Generator</span></>}
+        {/* Generate Button */}
+        <button
+          onClick={handleGenerateMusic}
+          disabled={isGeneratingMusic}
+          className="w-full group relative overflow-hidden bg-transparent text-white text-2xl font-black py-8 rounded-3xl transition-all mb-8"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-[#00FFE7] via-[#B84DFF] to-[#00FFE7] opacity-80 group-hover:opacity-100 transition-opacity duration-300 animate-gradient-x"></div>
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+          <div className="relative z-10 flex items-center justify-center gap-4 drop-shadow-lg">
+            {isGeneratingMusic ? (
+              <><Loader2 className="w-8 h-8 animate-spin" /><span>GENERANDO {generationProgress}%</span></>
+            ) : (
+              <><Play className="w-8 h-8 fill-current" /><span>THE GENERATOR</span></>
+            )}
+          </div>
         </button>
 
+        {/* Generation Status */}
         {isGeneratingMusic && (
-          <div className="mb-6 bg-[#1a1d29]/50 backdrop-blur-xl rounded-2xl p-6 border-2 border-[#B84DFF]/30">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-5 h-5 text-[#B84DFF] animate-spin"/>
-                <span className="text-lg font-semibold text-[#9AF7EE]">{generationMessage}</span>
-              </div>
+          <NexusCard className="mb-8 border-[#B84DFF]/50">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <span className="text-xl font-bold text-white">{generationProgress}%</span>
-                <button
-                  onClick={() => {
-                    setIsGeneratingMusic(false)
-                    setGenerationProgress(0)
-                    setGenerationMessage('')
-                    setError('Generación cancelada por el usuario')
-                    setTimeout(() => setError(''), 3000)
-                  }}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-all"
-                >
-                  Cancelar
-                </button>
+                <div className="relative">
+                  <div className="absolute inset-0 bg-[#B84DFF] blur-lg animate-pulse"></div>
+                  <Loader2 className="w-6 h-6 text-white relative z-10 animate-spin" />
+                </div>
+                <span className="text-lg font-mono text-[#00FFE7] animate-pulse">{generationMessage}</span>
+              </div>
+              <button
+                onClick={() => {
+                  setIsGeneratingMusic(false)
+                  setGenerationProgress(0)
+                  setGenerationMessage('')
+                  setError('Generación cancelada por el usuario')
+                  setTimeout(() => setError(''), 3000)
+                }}
+                className="px-4 py-2 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 text-red-200 text-xs font-bold rounded-lg transition-all uppercase tracking-wider"
+              >
+                Abortar
+              </button>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="w-full h-6 bg-[#0A0C10] rounded-full overflow-hidden border border-white/10 relative">
+              <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
+              <div
+                className="h-full bg-gradient-to-r from-[#00FFE7] via-[#B84DFF] to-[#FF1744] transition-all duration-500 relative"
+                style={{ width: `${generationProgress}%` }}
+              >
+                <div className="absolute inset-0 bg-white/20 animate-shimmer"></div>
               </div>
             </div>
-            <div className="w-full h-4 bg-black/30 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-[#00FFE7] via-[#B84DFF] to-[#FF1744] transition-all duration-500 rounded-full" style={{width:`${generationProgress}%`}}/>
+
+            <div className="flex justify-between mt-2 text-xs font-mono text-gray-500">
+              <span>ESTIMATED TIME: {estimatedTime}s</span>
+              <span>{generationProgress}% COMPLETED</span>
             </div>
-            <p className="mt-3 text-center text-sm text-gray-400">
-              Tiempo estimado: {estimatedTime}s
-              {generationProgress === 50 && (
-                <span className="block text-yellow-400 mt-1">
-                  ⚠️ Si se queda atascado en 50%, cancela e intenta de nuevo
-                </span>
-              )}
-            </p>
-          </div>
+          </NexusCard>
         )}
 
-        <div className="bg-gradient-to-br from-[#1a1d29]/50 via-[#0A0C10]/30 to-[#1a1d29]/50 backdrop-blur-xl rounded-3xl p-8 border-2 border-[#00FFE7]/50 shadow-2xl">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-4 bg-gradient-to-br from-[#00FFE7] to-[#B84DFF] rounded-xl">
-              <Play className="w-8 h-8 text-white" />
-            </div>
-            <h3 className="text-3xl font-bold text-white">🎉 Reproductor de Tracks</h3>
-            <span className="text-sm text-[#9AF7EE]">Escucha tus creaciones</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
-            {tracks.map((track, index) => (
-              <div
-                key={track.id}
-                onClick={() => setCurrentTrack(track.id)}
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  currentTrack === track.id
-                    ? 'bg-gradient-to-br from-[#B84DFF] to-[#00FFE7] border-[#B84DFF] text-white'
-                    : 'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-[#B84DFF] to-[#00FFE7] rounded-lg">
-                    <Play className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-semibold">{track.name}</h4>
-                    <p className="text-sm opacity-75">
-                      {track.url ? '✅ Listo para reproducir' : '⏳ Generando...'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {currentTrack && (
-            <div className="space-y-4">
-              <div className="w-full">
-                <input
-                  type="range"
-                  min="0"
-                  max={duration}
-                  value={position}
-                  onChange={handleSeek}
-                  className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-                  style={{
-                    background: `linear-gradient(to right, #00FFE7 0%, #00FFE7 ${(position / duration) * 100}%, rgba(255,255,255,0.2) ${(position / duration) * 100}%, rgba(255,255,255,0.2) 100%)`
-                  }}
-                />
-                <div className="flex justify-between text-sm text-gray-400 mt-1">
-                  <span>{Math.floor(position / 60)}:{(position % 60).toFixed(0).padStart(2, '0')}</span>
-                  <span>{Math.floor(duration / 60)}:{(duration % 60).toFixed(0).padStart(2, '0')}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center gap-4">
-                <button onClick={() => setPosition(Math.max(0, position - 10))} className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-all">
-                  <SkipBack className="w-5 h-5 text-white" />
-                </button>
-                <button onClick={() => setIsPlaying(!isPlaying)} disabled={!currentTrackUrl} className="p-4 bg-gradient-to-r from-[#B84DFF] to-[#00FFE7] rounded-xl hover:from-[#B84DFF]/80 hover:to-[#00FFE7]/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                  {isPlaying ? <Pause className="w-6 h-6 text-white" /> : <Play className="w-6 h-6 text-white" />}
-                </button>
-                <button onClick={() => setPosition(Math.min(duration, position + 10))} className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-all">
-                  <SkipForward className="w-5 h-5 text-white" />
-                </button>
-                <button onClick={() => setVolume(volume === 0 ? 75 : 0)} className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-all">
-                  {volume === 0 ? <VolumeX className="w-5 h-5 text-white" /> : <Volume2 className="w-5 h-5 text-white" />}
-                </button>
-              </div>
-
-              <div className="flex justify-center">
-                <a
-                  href={currentTrackUrl}
-                  download={`track-${currentTrack}.mp3`}
-                  className={`px-6 py-3 bg-gradient-to-r from-[#B84DFF] to-[#00FFE7] hover:from-[#B84DFF]/80 hover:to-[#00FFE7]/80 text-white font-bold rounded-xl transition-all flex items-center gap-2 ${!currentTrackUrl ? 'opacity-50 pointer-events-none' : ''}`}
+        {/* Player Section */}
+        <NexusCard
+          title="Reproductor de Tracks"
+          icon={<Radio className="w-6 h-6 text-white" />}
+          className="border-[#00FFE7]/50"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Track List */}
+            <div className="space-y-3">
+              {tracks.map((track) => (
+                <div
+                  key={track.id}
+                  onClick={() => setCurrentTrack(track.id)}
+                  className={`p-4 rounded-xl border transition-all cursor-pointer group relative overflow-hidden ${currentTrack === track.id
+                      ? 'bg-[#B84DFF]/20 border-[#B84DFF] shadow-[0_0_15px_rgba(184,77,255,0.2)]'
+                      : 'bg-[#1a1d29]/30 border-white/5 hover:bg-[#1a1d29]/50 hover:border-white/20'
+                    }`}
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Descargar Track</span>
-                </a>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-6 p-4 bg-black/20 rounded-xl">
-            <h4 className="text-lg font-semibold text-white mb-2">Estado de Generación:</h4>
-            <div className="space-y-2">
-              {tracks.map((track, index) => (
-                <div key={track.id} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-300">{track.name}:</span>
-                  <span className={track.url ? 'text-green-400' : 'text-yellow-400'}>
-                    {track.url ? '✅ Completado' : '⏳ Procesando...'}
-                  </span>
+                  <div className="flex items-center gap-4 relative z-10">
+                    <div className={`p-3 rounded-lg ${currentTrack === track.id ? 'bg-[#B84DFF] text-white' : 'bg-white/5 text-gray-400'}`}>
+                      <Music className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className={`font-bold ${currentTrack === track.id ? 'text-white' : 'text-gray-300'}`}>{track.name}</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`w-2 h-2 rounded-full ${track.url ? 'bg-green-500 shadow-[0_0_5px_#22c55e]' : 'bg-yellow-500 animate-pulse'}`}></span>
+                        <span className="text-xs text-gray-500 font-mono">{track.url ? 'READY' : 'PROCESSING'}</span>
+                      </div>
+                    </div>
+                    {currentTrack === track.id && <div className="w-2 h-2 bg-[#00FFE7] rounded-full shadow-[0_0_10px_#00FFE7]"></div>}
+                  </div>
                 </div>
               ))}
             </div>
-            {trackUrls.length === 0 && (
-              <p className="text-gray-400 text-sm mt-2">
-                Genera música para ver los tracks aquí
-              </p>
-            )}
+
+            {/* Visualizer & Controls */}
+            <div className="bg-[#0A0C10]/50 rounded-2xl p-6 border border-white/5 flex flex-col justify-between">
+              <div className="mb-6">
+                <AudioVisualizer isPlaying={isPlaying} color={currentTrack === 'track1' ? '#00FFE7' : '#B84DFF'} />
+              </div>
+
+              {currentTrack && (
+                <div className="space-y-4">
+                  {/* Seek Bar */}
+                  <div className="w-full group">
+                    <input
+                      type="range"
+                      min="0"
+                      max={duration}
+                      value={position}
+                      onChange={handleSeek}
+                      className="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-[#00FFE7]"
+                      style={{
+                        background: `linear-gradient(to right, #00FFE7 0%, #00FFE7 ${(position / duration) * 100}%, rgba(255,255,255,0.1) ${(position / duration) * 100}%, rgba(255,255,255,0.1) 100%)`
+                      }}
+                    />
+                    <div className="flex justify-between text-[10px] text-gray-500 mt-2 font-mono">
+                      <span>{Math.floor(position / 60)}:{(position % 60).toFixed(0).padStart(2, '0')}</span>
+                      <span>{Math.floor(duration / 60)}:{(duration % 60).toFixed(0).padStart(2, '0')}</span>
+                    </div>
+                  </div>
+
+                  {/* Controls */}
+                  <div className="flex items-center justify-center gap-4">
+                    <button onClick={() => setPosition(Math.max(0, position - 10))} className="p-2 text-gray-400 hover:text-white transition-colors">
+                      <SkipBack className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => setIsPlaying(!isPlaying)}
+                      disabled={!currentTrackUrl}
+                      className="w-14 h-14 bg-gradient-to-br from-[#00FFE7] to-[#B84DFF] rounded-full flex items-center justify-center text-white shadow-[0_0_20px_rgba(0,255,231,0.4)] hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                    >
+                      {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current ml-1" />}
+                    </button>
+                    <button onClick={() => setPosition(Math.min(duration, position + 10))} className="p-2 text-gray-400 hover:text-white transition-colors">
+                      <SkipForward className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="flex justify-center pt-2">
+                    <a
+                      href={currentTrackUrl}
+                      download={`track-${currentTrack}.mp3`}
+                      className={`text-xs font-bold text-[#00FFE7] hover:text-[#B84DFF] transition-colors flex items-center gap-2 ${!currentTrackUrl ? 'opacity-50 pointer-events-none' : ''}`}
+                    >
+                      <Download className="w-4 h-4" />
+                      DOWNLOAD MP3
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </NexusCard>
       </div>
 
       <audio ref={audioRef} src={currentTrackUrl} preload="metadata" className="hidden" />

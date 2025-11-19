@@ -53,7 +53,7 @@ export function TheGeneratorPage() {
   const [lyricsInput, setLyricsInput] = useState('')
   const [generatedLyrics, setGeneratedLyrics] = useState('')
   const [musicPrompt, setMusicPrompt] = useState('')
-  const [voice, setVoice] = useState<'male'|'female'|'random'|'duet'>('male')
+  const [voice, setVoice] = useState<'male' | 'female' | 'random' | 'duet'>('male')
   const [instrumental, setInstrumental] = useState(false)
   const [isGeneratingLyrics, setIsGeneratingLyrics] = useState(false)
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false)
@@ -120,11 +120,118 @@ export function TheGeneratorPage() {
     setError('')
 
     try {
-      // Simular llamada a API (reemplazar con API real después)
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      setGeneratedLyrics(`Letra generada basada en: ${lyricsInput}`)
-      toast.success('Letra generada exitosamente!')
+      // ✅ CONECTAR CON GROQ para generación inteligente de letra
+      const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY
+
+      if (!GROQ_API_KEY) {
+        throw new Error('GROQ_API_KEY no configurada. Configura VITE_GROQ_API_KEY en .env')
+      }
+
+      // Construir prompt inteligente basado en knobs literarios
+      const literaryPrompt = getLiteraryPrompt()
+
+      const fullPrompt = `Crea letra de canción completa basada en: "${lyricsInput}"
+
+${literaryPrompt}
+
+REGLAS OBLIGATORIAS:
+1. EMPIEZA DIRECTO con [Verse 1] - NO escribas título, NO escribas intro con letra
+2. Usa SOLO estas etiquetas: [Verse 1], [Chorus], [Verse 2], [Bridge], [Outro]
+3. NO uses markdown (**), NO uses títulos, NO uses paréntesis ()
+4. Solo letra pura cantable
+5. ⚠️ CRÍTICO: LÍNEAS CORTAS (máximo 6-8 palabras por línea)
+6. Versos respirables, NO atropellados
+7. Cada línea debe ser cantable en 2-3 segundos
+
+ESTRUCTURA EXACTA:
+
+[Verse 1]
+línea corta (6-8 palabras)
+línea corta (6-8 palabras)
+línea corta (6-8 palabras)
+línea corta (6-8 palabras)
+
+[Chorus]
+línea corta y pegajosa
+línea corta y pegajosa
+línea corta y pegajosa
+
+[Verse 2]
+línea corta (6-8 palabras)
+línea corta (6-8 palabras)
+línea corta (6-8 palabras)
+línea corta (6-8 palabras)
+
+[Chorus]
+
+[Bridge]
+línea corta (6-8 palabras)
+línea corta (6-8 palabras)
+
+[Chorus]
+
+[Outro]
+línea final corta
+
+EMPIEZA DIRECTAMENTE CON [Verse 1]. Nada antes. LÍNEAS CORTAS Y CANTABLES.`
+
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [{ role: 'user', content: fullPrompt }],
+          max_tokens: 1200,
+          temperature: 0.9
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Groq API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+      let lyrics = data.choices[0].message.content.trim()
+
+      // Limpiar cualquier cosa antes de [Verse 1]
+      const verse1Index = lyrics.indexOf('[Verse 1]')
+      if (verse1Index > 0) {
+        lyrics = lyrics.substring(verse1Index)
+      }
+
+      // Limpiar formato extra
+      lyrics = lyrics.replace(/^\*\*.*?\*\*\s*/gm, '')
+      lyrics = lyrics.replace(/^#.*$/gm, '')
+      lyrics = lyrics.replace(/\(.*?\)/g, '')
+      lyrics = lyrics.replace(/^Canción:.*$/gm, '')
+      lyrics = lyrics.replace(/^\[Intro\][\s\S]*?(?=\[Verse 1\])/m, '')
+
+      // Acortar líneas largas
+      lyrics = lyrics.split('\n').map(line => {
+        if (line.trim().startsWith('[') && line.trim().endsWith(']')) {
+          return line
+        }
+        if (!line.trim()) {
+          return line
+        }
+        const words = line.trim().split(/\s+/)
+        if (words.length > 10) {
+          const chunks = []
+          for (let i = 0; i < words.length; i += 8) {
+            chunks.push(words.slice(i, i + 8).join(' '))
+          }
+          return chunks.join('\n')
+        }
+        return line
+      }).join('\n')
+
+      setGeneratedLyrics(lyrics.trim())
+      toast.success('Letra generada con Groq AI!')
     } catch (err: any) {
+      console.error('Error generando letra:', err)
       setError(err.message || 'Error generando letra')
       setTimeout(() => setError(''), 5000)
     } finally {
@@ -142,16 +249,73 @@ export function TheGeneratorPage() {
     setError('')
 
     try {
-      // Simular llamada a API (reemplazar con API real después)
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      toast.success('Prompt musical generado!')
+      // ✅ CONECTAR CON GROQ para generación inteligente de prompt musical
+      const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY
+
+      if (!GROQ_API_KEY) {
+        throw new Error('GROQ_API_KEY no configurada. Configura VITE_GROQ_API_KEY en .env')
+      }
+
+      const knobs = useKnobsStore.getKnobs()
+
+      const promptRequest = `Basado en esta descripción musical: "${musicPrompt}"
+
+Genera un prompt musical optimizado para Suno AI con estas características:
+- Intensidad emocional: ${knobs.emotionalIntensity}/10
+- Estilo poético: ${knobs.poeticStyle}/10
+- Intensidad del tema: ${knobs.themeIntensity}/10
+
+REGLAS:
+1. Máximo 120 caracteres
+2. Incluye género musical, tempo, y mood
+3. Usa términos musicales precisos (BPM, tonalidad si aplica)
+4. NO incluyas letra, solo descripción musical
+5. Formato: [género], [tempo], [instrumentos clave], [mood/atmósfera]
+
+EJEMPLOS:
+- "upbeat pop, 128 BPM, synth-heavy, euphoric vibes"
+- "melancholic indie rock, slow tempo, acoustic guitar, introspective"
+- "energetic EDM, 140 BPM, heavy bass, festival anthem"
+
+Genera SOLO el prompt musical, sin explicaciones adicionales.`
+
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [{ role: 'user', content: promptRequest }],
+          max_tokens: 150,
+          temperature: 0.7
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Groq API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+      const enhancedPrompt = data.choices[0].message.content.trim()
+
+      // Limitar a 180 caracteres
+      const finalPrompt = enhancedPrompt.length > 180
+        ? enhancedPrompt.substring(0, 177) + '...'
+        : enhancedPrompt
+
+      setMusicPrompt(finalPrompt)
+      toast.success('Prompt musical generado con Groq AI!')
     } catch (err: any) {
+      console.error('Error generando prompt:', err)
       setError(err.message || 'Error generando prompt')
       setTimeout(() => setError(''), 5000)
     } finally {
       setIsGeneratingPrompt(false)
     }
   }
+
 
   const handleGenerateMusic = async () => {
     if (!instrumental && !generatedLyrics?.trim()) {
@@ -178,8 +342,8 @@ export function TheGeneratorPage() {
       const BACKEND_SECRET = import.meta.env.VITE_BACKEND_SECRET || 'dev-token'
 
       // Preparar prompt completo (igual que Next.js)
-      const finalPrompt = instrumental 
-        ? `[${musicPrompt}]` 
+      const finalPrompt = instrumental
+        ? `[${musicPrompt}]`
         : `[${musicPrompt}]\n\n${generatedLyrics?.trim() || ""}`
 
       setGenerationMessage('📡 Conectando con backend...')
@@ -235,7 +399,7 @@ export function TheGeneratorPage() {
   const pollTrackStatus = async (trackId: string, generationId?: string) => {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://son1kverse-backend.railway.app'
     const BACKEND_SECRET = import.meta.env.VITE_BACKEND_SECRET || 'dev-token'
-    
+
     const maxAttempts = 60 // 5 minutos máximo (5s * 60)
     let attempts = 0
 
@@ -264,7 +428,7 @@ export function TheGeneratorPage() {
             const data = await response.json()
             if (data.success && data.data) {
               const gen = data.data
-              
+
               if (gen.status === 'completed' && gen.audioUrl) {
                 // ✅ Música lista
                 setTrackUrls([gen.audioUrl])
@@ -298,7 +462,7 @@ export function TheGeneratorPage() {
 
           if (response.ok) {
             const data = await response.json()
-            
+
             if (data.running === false && data.audio_url) {
               // ✅ Música lista
               setTrackUrls([data.audio_url])
@@ -414,12 +578,12 @@ export function TheGeneratorPage() {
     <div className="min-h-screen bg-gradient-to-br from-[#0A0C10] via-[#1a1d29] to-[#0A0C10] relative overflow-hidden">
       <div className="absolute inset-0 opacity-20">
         <div className="absolute top-20 left-20 w-96 h-96 bg-[#B84DFF] rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-[#00FFE7] rounded-full blur-3xl animate-pulse" style={{animationDelay:'1s'}}></div>
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-[#00FFE7] rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
       </div>
       <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
         <div className="text-center mb-8 md:mb-12">
           <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4">
-            <Music className="w-8 h-8 md:w-12 md:h-12 text-[#00FFE7]"/>
+            <Music className="w-8 h-8 md:w-12 md:h-12 text-[#00FFE7]" />
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-[#00FFE7] via-[#B84DFF] to-[#9AF7EE] bg-clip-text text-transparent font-mono tracking-wider">THE GENERATOR</h1>
           </div>
           <p className="text-[#9AF7EE] text-sm md:text-base lg:text-lg px-4">Crea música profesional con IA</p>
@@ -522,40 +686,40 @@ export function TheGeneratorPage() {
           <div className="bg-[#1a1d29]/50 backdrop-blur-xl rounded-3xl p-6 border-2 border-[#00FFE7]/20 shadow-2xl hover:border-[#B84DFF]/50 transition-all">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 bg-gradient-to-br from-[#B84DFF] to-[#00FFE7] rounded-xl">
-                <BookOpen className="w-6 h-6 text-white"/>
+                <BookOpen className="w-6 h-6 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-white">Letra</h2>
             </div>
             <textarea
               value={lyricsInput}
-              onChange={e=>setLyricsInput(e.target.value || '')}
-              disabled={instrumental||isGeneratingLyrics}
+              onChange={e => setLyricsInput(e.target.value || '')}
+              disabled={instrumental || isGeneratingLyrics}
               placeholder="Escribe palabras o ideas..."
               className="w-full h-40 px-4 py-3 bg-black/30 border-2 border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 disabled:opacity-50 resize-none mb-4"
             />
             {generatedLyrics && (
               <div className="mb-4 p-4 bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-xl border border-purple-500/30 max-h-60 overflow-y-auto">
                 <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="w-4 h-4 text-purple-400"/>
+                  <Sparkles className="w-4 h-4 text-purple-400" />
                   <p className="text-sm font-semibold text-purple-300">Letra Generada</p>
                 </div>
                 <pre className="text-white whitespace-pre-wrap text-sm">{generatedLyrics}</pre>
               </div>
             )}
-            <button onClick={handleGenerateLyrics} disabled={isGeneratingLyrics||instrumental} className="w-full bg-gradient-to-r from-[#B84DFF] to-[#00FFE7] hover:from-[#B84DFF]/80 hover:to-[#00FFE7]/80 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 disabled:hover:scale-100 flex items-center justify-center gap-2">
-              {isGeneratingLyrics ? <><Loader2 className="w-5 h-5 animate-spin"/><span>Generando...</span></> : <><Wand2 className="w-5 h-5"/><span>Generar Letra</span></>}
+            <button onClick={handleGenerateLyrics} disabled={isGeneratingLyrics || instrumental} className="w-full bg-gradient-to-r from-[#B84DFF] to-[#00FFE7] hover:from-[#B84DFF]/80 hover:to-[#00FFE7]/80 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 disabled:hover:scale-100 flex items-center justify-center gap-2">
+              {isGeneratingLyrics ? <><Loader2 className="w-5 h-5 animate-spin" /><span>Generando...</span></> : <><Wand2 className="w-5 h-5" /><span>Generar Letra</span></>}
             </button>
           </div>
           <div className="bg-[#1a1d29]/50 backdrop-blur-xl rounded-3xl p-6 border-2 border-[#00FFE7]/20 shadow-2xl hover:border-[#9AF7EE]/50 transition-all">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 bg-gradient-to-br from-[#00FFE7] to-[#9AF7EE] rounded-xl">
-                <Music className="w-6 h-6 text-white"/>
+                <Music className="w-6 h-6 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-white">Estilo</h2>
             </div>
             <textarea
               value={musicPrompt}
-              onChange={e=>setMusicPrompt(e.target.value || '')}
+              onChange={e => setMusicPrompt(e.target.value || '')}
               disabled={isGeneratingPrompt}
               placeholder="Describe el estilo musical..."
               maxLength={180}
@@ -565,42 +729,42 @@ export function TheGeneratorPage() {
               {musicPrompt.length}/180 caracteres
             </div>
             <button onClick={handleGeneratePrompt} disabled={isGeneratingPrompt} className="w-full bg-gradient-to-r from-[#00FFE7] to-[#9AF7EE] hover:from-[#00FFE7]/80 hover:to-[#9AF7EE]/80 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2">
-              {isGeneratingPrompt ? <><Loader2 className="w-5 h-5 animate-spin"/><span>Generando...</span></> : <><Sparkles className="w-5 h-5"/><span>Prompt Creativo</span></>}
+              {isGeneratingPrompt ? <><Loader2 className="w-5 h-5 animate-spin" /><span>Generando...</span></> : <><Sparkles className="w-5 h-5" /><span>Prompt Creativo</span></>}
             </button>
           </div>
         </div>
         <div className="bg-[#1a1d29]/50 backdrop-blur-xl rounded-3xl p-6 border-2 border-[#00FFE7]/20 shadow-2xl mb-6">
           <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <Palette className="w-6 h-6 text-[#B84DFF]"/>Configuración
+            <Palette className="w-6 h-6 text-[#B84DFF]" />Configuración
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-2 md:gap-4">
-            <button onClick={()=>setVoice('male')} disabled={instrumental} className={`p-3 md:p-4 rounded-xl text-sm md:text-base font-semibold border-2 flex items-center justify-center gap-2 ${voice==='male'&&!instrumental?'bg-gradient-to-br from-[#00FFE7] to-[#9AF7EE] border-[#00FFE7] text-white scale-105':'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'} disabled:opacity-50`}>
-              <BookOpen className="w-5 h-5"/><span>Hombre</span>
+            <button onClick={() => setVoice('male')} disabled={instrumental} className={`p-3 md:p-4 rounded-xl text-sm md:text-base font-semibold border-2 flex items-center justify-center gap-2 ${voice === 'male' && !instrumental ? 'bg-gradient-to-br from-[#00FFE7] to-[#9AF7EE] border-[#00FFE7] text-white scale-105' : 'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'} disabled:opacity-50`}>
+              <BookOpen className="w-5 h-5" /><span>Hombre</span>
             </button>
-            <button onClick={()=>setVoice('female')} disabled={instrumental} className={`p-4 rounded-xl font-semibold border-2 flex items-center justify-center gap-2 ${voice==='female'&&!instrumental?'bg-gradient-to-br from-[#B84DFF] to-[#FF1744] border-[#B84DFF] text-white scale-105':'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'} disabled:opacity-50`}>
-              <BookOpen className="w-5 h-5"/><span>Mujer</span>
+            <button onClick={() => setVoice('female')} disabled={instrumental} className={`p-4 rounded-xl font-semibold border-2 flex items-center justify-center gap-2 ${voice === 'female' && !instrumental ? 'bg-gradient-to-br from-[#B84DFF] to-[#FF1744] border-[#B84DFF] text-white scale-105' : 'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'} disabled:opacity-50`}>
+              <BookOpen className="w-5 h-5" /><span>Mujer</span>
             </button>
-            <button onClick={()=>setVoice('random')} disabled={instrumental} className={`p-4 rounded-xl font-semibold border-2 flex items-center justify-center gap-2 ${voice==='random'&&!instrumental?'bg-gradient-to-br from-[#FFD700] to-[#B84DFF] border-[#FFD700] text-white scale-105':'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'} disabled:opacity-50`}>
-              <Shuffle className="w-5 h-5"/><span>Random</span>
+            <button onClick={() => setVoice('random')} disabled={instrumental} className={`p-4 rounded-xl font-semibold border-2 flex items-center justify-center gap-2 ${voice === 'random' && !instrumental ? 'bg-gradient-to-br from-[#FFD700] to-[#B84DFF] border-[#FFD700] text-white scale-105' : 'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'} disabled:opacity-50`}>
+              <Shuffle className="w-5 h-5" /><span>Random</span>
             </button>
-            <button onClick={()=>setVoice('duet')} disabled={instrumental} className={`p-4 rounded-xl font-semibold border-2 flex items-center justify-center gap-2 ${voice==='duet'&&!instrumental?'bg-gradient-to-br from-[#B84DFF] to-[#00FFE7] border-[#B84DFF] text-white scale-105':'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'} disabled:opacity-50`}>
-              <Zap className="w-5 h-5"/><span>Dueto</span>
+            <button onClick={() => setVoice('duet')} disabled={instrumental} className={`p-4 rounded-xl font-semibold border-2 flex items-center justify-center gap-2 ${voice === 'duet' && !instrumental ? 'bg-gradient-to-br from-[#B84DFF] to-[#00FFE7] border-[#B84DFF] text-white scale-105' : 'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'} disabled:opacity-50`}>
+              <Zap className="w-5 h-5" /><span>Dueto</span>
             </button>
-            <button onClick={()=>{setInstrumental(!instrumental);if(!instrumental){setGeneratedLyrics('');setLyricsInput('')}}} className={`p-4 rounded-xl font-semibold border-2 flex items-center justify-center gap-2 ${instrumental?'bg-gradient-to-br from-[#FF1744] to-[#FFD700] border-[#FF1744] text-white scale-105':'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'}`}>
-              <Music className="w-5 h-5"/><span>Instrumental</span>
+            <button onClick={() => { setInstrumental(!instrumental); if (!instrumental) { setGeneratedLyrics(''); setLyricsInput('') } }} className={`p-4 rounded-xl font-semibold border-2 flex items-center justify-center gap-2 ${instrumental ? 'bg-gradient-to-br from-[#FF1744] to-[#FFD700] border-[#FF1744] text-white scale-105' : 'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'}`}>
+              <Music className="w-5 h-5" /><span>Instrumental</span>
             </button>
           </div>
         </div>
 
         <button onClick={handleGenerateMusic} disabled={isGeneratingMusic} className="w-full bg-gradient-to-r from-[#00FFE7] via-[#B84DFF] to-[#FF1744] hover:from-[#00FFE7]/80 hover:via-[#B84DFF]/80 hover:to-[#FF1744]/80 disabled:from-gray-600 disabled:to-gray-700 text-white text-xl font-black py-8 rounded-3xl transition-all transform hover:scale-105 disabled:hover:scale-100 shadow-2xl flex items-center justify-center gap-3 mb-6 font-mono">
-          {isGeneratingMusic ? <><Loader2 className="w-8 h-8 animate-spin"/><span>Generando {generationProgress}%</span></> : <><Play className="w-8 h-8"/><span>The Generator</span></>}
+          {isGeneratingMusic ? <><Loader2 className="w-8 h-8 animate-spin" /><span>Generando {generationProgress}%</span></> : <><Play className="w-8 h-8" /><span>The Generator</span></>}
         </button>
 
         {isGeneratingMusic && (
           <div className="mb-6 bg-[#1a1d29]/50 backdrop-blur-xl rounded-2xl p-6 border-2 border-[#B84DFF]/30">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Loader2 className="w-5 h-5 text-[#B84DFF] animate-spin"/>
+                <Loader2 className="w-5 h-5 text-[#B84DFF] animate-spin" />
                 <span className="text-lg font-semibold text-[#9AF7EE]">{generationMessage}</span>
               </div>
               <div className="flex items-center gap-3">
@@ -620,10 +784,10 @@ export function TheGeneratorPage() {
               </div>
             </div>
             <div className="w-full h-4 bg-black/30 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-[#00FFE7] via-[#B84DFF] to-[#FF1744] transition-all duration-500 rounded-full" style={{width:`${generationProgress}%`}}/>
+              <div className="h-full bg-gradient-to-r from-[#00FFE7] via-[#B84DFF] to-[#FF1744] transition-all duration-500 rounded-full" style={{ width: `${generationProgress}%` }} />
             </div>
             <p className="mt-3 text-center text-sm text-gray-400">
-              Tiempo estimado: {Math.max(0,Math.round((100-generationProgress)/100*120))}s
+              Tiempo estimado: {Math.max(0, Math.round((100 - generationProgress) / 100 * 120))}s
               {generationProgress === 50 && (
                 <span className="block text-yellow-400 mt-1">
                   ⚠️ Si se queda atascado en 50%, cancela e intenta de nuevo
@@ -649,11 +813,10 @@ export function TheGeneratorPage() {
               <div
                 key={track.id}
                 onClick={() => setCurrentTrack(track.id)}
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  currentTrack === track.id
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${currentTrack === track.id
                     ? 'bg-gradient-to-br from-[#B84DFF] to-[#00FFE7] border-[#B84DFF] text-white'
                     : 'bg-[#1a1d29]/30 border-[#00FFE7]/20 text-gray-300 hover:bg-[#1a1d29]/50'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-gradient-to-br from-[#B84DFF] to-[#00FFE7] rounded-lg">

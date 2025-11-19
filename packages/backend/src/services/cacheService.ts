@@ -18,7 +18,7 @@ export class CacheService {
     })
 
     // Define cache configurations
-    this.configs.set('suno_tokens', { ttl: 300, prefix: 'cache:suno_tokens' }) // 5 minutes
+    this.configs.set('neural_tokens', { ttl: 300, prefix: 'cache:neural_tokens' }) // 5 minutes
     this.configs.set('user_data', { ttl: 1800, prefix: 'cache:user_data' }) // 30 minutes
     this.configs.set('generation_results', { ttl: 3600, prefix: 'cache:generation_results' }) // 1 hour
     this.configs.set('analytics', { ttl: 900, prefix: 'cache:analytics' }) // 15 minutes
@@ -80,9 +80,9 @@ export class CacheService {
 
       const fullPattern = `${config.prefix}:${pattern}`
       const keys = await this.redis.keys(fullPattern)
-      
+
       if (keys.length === 0) return 0
-      
+
       return await this.redis.del(...keys)
     } catch (error) {
       console.error(`Cache invalidate pattern error for ${cacheType}:${pattern}:`, error)

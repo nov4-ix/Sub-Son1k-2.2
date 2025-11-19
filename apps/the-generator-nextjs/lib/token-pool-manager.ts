@@ -1,14 +1,14 @@
 /**
  * 🔄 TOKEN POOL MANAGER
  * 
- * Sistema inteligente de gestión de pool de tokens de Suno.
+ * Sistema inteligente de gestión de pool de tokens de Neural Engine.
  * Selecciona el mejor token disponible basándose en múltiples factores.
  */
 
 import { createClient } from '@supabase/supabase-js'
 
 // Tipos
-export interface SunoToken {
+export interface NeuralToken {
   id: string
   user_id: string
   token: string
@@ -58,7 +58,7 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGci
 
 class TokenPoolManager {
   private supabase: ReturnType<typeof createClient>
-  private cache: Map<string, SunoToken>
+  private cache: Map<string, NeuralToken>
   private cacheExpiry: number = 60000 // 1 minuto
 
   constructor() {
@@ -69,9 +69,9 @@ class TokenPoolManager {
   /**
    * Selecciona el mejor token disponible del pool
    */
-  async selectBestToken(requestingUserId?: string): Promise<SunoToken> {
+  async selectBestToken(requestingUserId?: string): Promise<NeuralToken> {
     console.log('🔍 Seleccionando mejor token del pool...')
-    
+
     // 1. Intentar usar token del propio usuario si es PREMIUM
     if (requestingUserId) {
       const ownToken = await this.getOwnToken(requestingUserId)
@@ -83,7 +83,7 @@ class TokenPoolManager {
 
     // 2. Obtener tokens disponibles del pool ordenados por prioridad
     const { data: tokens, error } = await this.supabase
-      .from('suno_tokens')
+      .from('neural_engine_tokens')
       .select('*')
       .eq('status', 'active')
       .eq('health_status', 'healthy')
@@ -103,8 +103,8 @@ class TokenPoolManager {
 
     // 3. Calcular scores y seleccionar el mejor
     const tokensWithScore = tokens.map(token => ({
-      token: token as SunoToken,
-      score: this.calculateTokenScore(token as SunoToken)
+      token: token as NeuralToken,
+      score: this.calculateTokenScore(token as NeuralToken)
     }))
 
     tokensWithScore.sort((a, b) => b.score - a.score)
@@ -119,22 +119,22 @@ class TokenPoolManager {
   /**
    * Obtiene el token del propio usuario
    */
-  private async getOwnToken(userId: string): Promise<SunoToken | null> {
+  private async getOwnToken(userId: string): Promise<NeuralToken | null> {
     const { data, error } = await this.supabase
-      .from('suno_tokens')
+      .from('neural_engine_tokens')
       .select('*')
       .eq('user_id', userId)
       .eq('status', 'active')
       .single()
 
     if (error || !data) return null
-    return data as SunoToken
+    return data as NeuralToken
   }
 
   /**
    * Verifica si un token es usable
    */
-  private isTokenUsable(token: SunoToken): boolean {
+  private isTokenUsable(token: NeuralToken): boolean {
     return (
       token.status === 'active' &&
       token.health_status === 'healthy' &&
@@ -147,7 +147,7 @@ class TokenPoolManager {
    * Calcula score de prioridad para un token
    * Mayor score = mayor prioridad
    */
-  private calculateTokenScore(token: SunoToken): number {
+  private calculateTokenScore(token: NeuralToken): number {
     let score = 100
 
     // Factor 1: Tier (peso alto)
@@ -251,51 +251,52 @@ class TokenPoolManager {
     token: string
     email: string
     tier: 'FREE' | 'PREMIUM' | 'ADMIN'
-  }): Promise<SunoToken> {
+  }): Promise<NeuralToken> {
     console.log('➕ Agregando nuevo token al pool...')
 
-    // Temporarily commented out due to Supabase issues
-    throw new Error('Token addition temporarily disabled')
+    // Extraer fecha de expiración del JWT (si es posible)
+    let expiresAt: Date | null = null
+    try {
+      const payload = JSON.parse(atob(params.token.split('.')[1]))
+      if (payload.exp) {
+        expiresAt = new Date(payload.exp * 1000)
+      }
+    } catch (e) {
+      console.warn('⚠️ No se pudo extraer expiración del token')
+    }
 
-    // // Extraer fecha de expiración del JWT (si es posible)
-    // let expiresAt: Date | null = null
-    // try {
-    //   const payload = JSON.parse(atob(params.token.split('.')[1]))
-    //   if (payload.exp) {
-    //     expiresAt = new Date(payload.exp * 1000)
-    //   }
-    // } catch (e) {
-    //   console.warn('⚠️ No se pudo extraer expiración del token')
-    // }
+    const maxUses = params.tier === 'PREMIUM' ? 999999 : params.tier === 'ADMIN' ? 999999 : 5
 
-    // const maxUses = params.tier === 'PREMIUM' ? 999999 : params.tier === 'ADMIN' ? 999999 : 5
+    const { data, error } = await this.supabase
+      .from('neural_engine_tokens')
+      .insert({
+        user_id: params.userId,
+        token: params.token,
+        user_email: params.email,
+        user_tier: params.tier,
+        max_uses: maxUses,
+        expires_at: expiresAt?.toISOString(),
+        status: 'active',
+        health_status: 'healthy'
+      } as any)
+      .select()
+      .single()
 
-    // // const { data, error } = await this.supabase
-    // //   .from('suno_tokens')
-    // //   .insert({
-    // //     user_id: params.userId,
-    // //     token: params.token,
-    // //     user_email: params.email,
-    // //     user_tier: params.tier,
-    // //     max_uses: maxUses,
-    // //     expires_at: expiresAt?.toISOString(),
-    // //     status: 'active',
-    // //     health_status: 'healthy'
-    // //   })
-    // //   .select()
-    // //   .single()
+    if (error) {
+      console.error('❌ Error agregando token:', error)
+      throw new Error('Error agregando token al pool')
+    }
 
-    // // if (error) {
-    // //   console.error('❌ Error agregando token:', error)
-    // //   throw new Error('Error agregando token al pool')
-    // // }
+    if (!data) {
+      throw new Error('Error: No se recibieron datos al agregar el token')
+    }
 
-    // // console.log('✅ Token agregado exitosamente:', data.id)
-    // // return data as SunoToken
+    console.log('✅ Token agregado exitosamente:', (data as any).id)
+    return data as NeuralToken
   }
 
   /**
-   * Valida un token contra la API de Suno
+   * Valida un token contra la API de Neural Engine
    */
   async validateToken(token: string): Promise<boolean> {
     try {

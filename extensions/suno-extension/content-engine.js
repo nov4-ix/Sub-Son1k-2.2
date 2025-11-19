@@ -8,7 +8,7 @@ class AITokenCapture {
   initializeCapture() {
     // Silent initialization - no console logs in production
     if (process.env.NODE_ENV === 'development') {
-      console.log('Son1kVerse AI Engine initialized')
+      console.log('Son1kVerse Neural Engine initialized')
     }
 
     // Listen for messages from background script
@@ -22,10 +22,10 @@ class AITokenCapture {
 
     // Monitor network requests for tokens
     this.monitorNetworkRequests()
-    
+
     // Monitor localStorage for tokens
     this.monitorLocalStorage()
-    
+
     // Monitor sessionStorage for tokens
     this.monitorSessionStorage()
   }
@@ -35,24 +35,24 @@ class AITokenCapture {
     const originalFetch = window.fetch
     window.fetch = async (...args) => {
       const response = await originalFetch(...args)
-      
+
       // Check if this is an AI generation API request
       if (args[0] && typeof args[0] === 'string' && this.isAIGenerationAPI(args[0])) {
         this.extractTokenFromRequest(args[1])
       }
-      
+
       return response
     }
 
     // Override XMLHttpRequest to capture tokens
     const originalXHROpen = XMLHttpRequest.prototype.open
-    XMLHttpRequest.prototype.open = function(method, url, ...args) {
+    XMLHttpRequest.prototype.open = function (method, url, ...args) {
       this._url = url
       return originalXHROpen.call(this, method, url, ...args)
     }
 
     const originalXHRSend = XMLHttpRequest.prototype.send
-    XMLHttpRequest.prototype.send = function(data) {
+    XMLHttpRequest.prototype.send = function (data) {
       if (this._url && this.isAIGenerationAPI(this._url)) {
         this.extractTokenFromRequest({ body: data })
       }
@@ -74,9 +74,9 @@ class AITokenCapture {
       // Check body for tokens
       if (requestConfig && requestConfig.body) {
         try {
-          const body = typeof requestConfig.body === 'string' ? 
+          const body = typeof requestConfig.body === 'string' ?
             JSON.parse(requestConfig.body) : requestConfig.body
-          
+
           if (body && body.token) {
             this.captureToken(body.token, 'request_body')
           }
@@ -91,9 +91,9 @@ class AITokenCapture {
 
   monitorLocalStorage() {
     const originalSetItem = localStorage.setItem
-    localStorage.setItem = function(key, value) {
+    localStorage.setItem = function (key, value) {
       const result = originalSetItem.call(this, key, value)
-      
+
       // Check if this looks like a token
       if (key.toLowerCase().includes('token') || key.toLowerCase().includes('auth')) {
         try {
@@ -108,16 +108,16 @@ class AITokenCapture {
           }
         }
       }
-      
+
       return result
     }
   }
 
   monitorSessionStorage() {
     const originalSetItem = sessionStorage.setItem
-    sessionStorage.setItem = function(key, value) {
+    sessionStorage.setItem = function (key, value) {
       const result = originalSetItem.call(this, key, value)
-      
+
       // Check if this looks like a token
       if (key.toLowerCase().includes('token') || key.toLowerCase().includes('auth')) {
         try {
@@ -132,7 +132,7 @@ class AITokenCapture {
           }
         }
       }
-      
+
       return result
     }
   }
@@ -243,7 +243,7 @@ class AITokenCapture {
 
       // Check if this is the target URL or contains 'token'/'api'
       if (args[0] && typeof args[0] === 'string' &&
-          (args[0] === targetUrl || args[0].includes('token') || args[0].includes('api'))) {
+        (args[0] === targetUrl || args[0].includes('token') || args[0].includes('api'))) {
 
         try {
           // Clone the response to read the body without consuming it
@@ -311,8 +311,8 @@ class AITokenCapture {
       for (const [key, value] of Object.entries(obj)) {
         // Look in keys that might contain tokens
         if (key.toLowerCase().includes('token') ||
-            key.toLowerCase().includes('jwt') ||
-            key.toLowerCase().includes('auth')) {
+          key.toLowerCase().includes('jwt') ||
+          key.toLowerCase().includes('auth')) {
 
           if (typeof value === 'string' && value.includes('.')) {
             // Likely a JWT token

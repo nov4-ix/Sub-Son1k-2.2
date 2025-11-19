@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, X, Sparkles, Minimize2, Maximize2 } from 'lucide-react'
+import { Send, X, Sparkles, Minimize2, Maximize2, Command } from 'lucide-react'
 import { pixelAI } from '../lib/pixelAI'
 import { pixelPersonality } from '../lib/pixelPersonality'
+import { parseCommand, executeCommand } from '../lib/pixelCommands'
+import { PixelCommandPalette } from './PixelCommandPalette'
 
 type PixelAppContext = keyof typeof pixelPersonality.outfits
 
@@ -29,6 +31,7 @@ export function PixelChatAdvanced({
   const [isLoading, setIsLoading] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -54,14 +57,14 @@ export function PixelChatAdvanced({
         setIsConnected(true)
         return
       }
-      
+
       // Fallback: Intentar Ollama local (solo para desarrollo)
       if (import.meta.env.DEV) {
-      const response = await fetch('http://localhost:11434/api/tags', {
-        method: 'GET',
+        const response = await fetch('http://localhost:11434/api/tags', {
+          method: 'GET',
           signal: AbortSignal.timeout(2000)
-      })
-      setIsConnected(response.ok)
+        })
+        setIsConnected(response.ok)
       } else {
         setIsConnected(false)
       }
@@ -141,9 +144,8 @@ export function PixelChatAdvanced({
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.95 }}
-      className={`fixed ${
-        isMinimized ? 'bottom-4 right-4 w-80 h-16' : 'bottom-4 right-4 w-96 h-[600px]'
-      } bg-carbon/95 backdrop-blur-xl border border-primary/30 rounded-2xl shadow-[0_0_30px_rgba(0,255,231,0.3)] transition-all duration-300 z-50`}
+      className={`fixed ${isMinimized ? 'bottom-4 right-4 w-80 h-16' : 'bottom-4 right-4 w-96 h-[600px]'
+        } bg-carbon/95 backdrop-blur-xl border border-primary/30 rounded-2xl shadow-[0_0_30px_rgba(0,255,231,0.3)] transition-all duration-300 z-50`}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-white/10">
@@ -152,9 +154,8 @@ export function PixelChatAdvanced({
             <div className="w-10 h-10 bg-gradient-to-r from-primary to-magenta rounded-xl flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-carbon" />
             </div>
-            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full ${
-              isConnected ? 'bg-green-400' : 'bg-red-400'
-            } border-2 border-carbon`} />
+            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'
+              } border-2 border-carbon`} />
           </div>
           <div>
             <h3 className="text-white font-bold">Pixel</h3>
@@ -193,11 +194,10 @@ export function PixelChatAdvanced({
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-2xl p-3 ${
-                      message.role === 'user'
+                    className={`max-w-[80%] rounded-2xl p-3 ${message.role === 'user'
                         ? 'bg-primary/20 text-white border border-primary/30'
                         : 'bg-white/5 text-white/90 border border-white/10'
-                    }`}
+                      }`}
                   >
                     <p className="text-sm leading-relaxed">{message.content}</p>
                     <p className="text-xs text-white/40 mt-1">

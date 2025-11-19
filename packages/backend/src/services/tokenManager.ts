@@ -1,6 +1,6 @@
 /**
  * Advanced Token Management Service
- * Handles token harvesting, rotation, and optimization for Suno API
+ * Handles token harvesting, rotation, and optimization for Neural Engine API
  * Enhanced version with improved performance and reliability
  */
 
@@ -160,7 +160,7 @@ export class TokenManager extends EventEmitter {
         throw new ValidationError('Token already exists in pool');
       }
 
-      // Validate token with Suno API
+      // Validate token with Neural Engine API
       const validation = await this.validateTokenWithGenerationAPI(token);
       const isValid = validation.isValid;
 
@@ -250,10 +250,84 @@ export class TokenManager extends EventEmitter {
         };
       }
 
-      return null;
     } catch (error) {
       this.emit('tokenError', { error, operation: 'getHealthyToken', userId });
       return null;
+    }
+  }
+
+  /**
+   * Acquire a token with distributed locking
+   * Ensures exclusive access to the token for a short duration
+   */
+  async acquireToken(userId?: string, tier: 'FREE' | 'PREMIUM' | 'ENTERPRISE' = 'FREE'): Promise<{ token: string; tokenId: string } | null> {
+    try {
+      // 1. Get candidates (healthy tokens)
+      const tokens = await this.getTokensByHealth(userId);
+
+      // Filter by tier preference (optional: strict tier enforcement)
+      // For now, we allow using any available token, but prioritize better ones via getTokensByHealth
+
+      for (const tokenInfo of tokens) {
+        if (!tokenInfo.isActive || !tokenInfo.isValid) continue;
+
+        // 2. Check local rate limit
+        const rateLimiter = this.rateLimiters.get(tokenInfo.id);
+        if (rateLimiter && !rateLimiter.isAllowed(`token:${tokenInfo.id}`)) {
+          continue;
+        }
+
+        // 3. Try to acquire distributed lock in Redis
+        if (this.redis) {
+          const lockKey = `token:lock:${tokenInfo.id}`;
+          // Set lock with 30s expiration, only if not exists (NX)
+          const acquired = await this.redis.set(lockKey, 'locked', 'PX', 30000, 'NX');
+
+          if (!acquired) {
+            // Token is currently in use by another process/request
+            continue;
+          }
+        }
+
+        // 4. Get original token
+        const originalToken = await this.getOriginalToken(tokenInfo.id);
+        if (!originalToken) {
+          // If failed to get token, release lock immediately
+          if (this.redis) {
+            await this.redis.del(`token:lock:${tokenInfo.id}`);
+          }
+          continue;
+        }
+
+        // 5. Update usage stats
+        await this.updateTokenUsage(tokenInfo.id);
+
+        console.log(`🔐 Token acquired and locked: ${tokenInfo.id}`);
+        return {
+          token: originalToken,
+          tokenId: tokenInfo.id
+        };
+      }
+
+      console.warn('⚠️ No available tokens could be acquired (all locked or unhealthy)');
+      return null;
+    } catch (error) {
+      this.emit('tokenError', { error, operation: 'acquireToken', userId });
+      return null;
+    }
+  }
+
+  /**
+   * Release a token lock
+   */
+  async releaseToken(tokenId: string): Promise<void> {
+    try {
+      if (this.redis) {
+        await this.redis.del(`token:lock:${tokenId}`);
+        console.log(`🔓 Token released: ${tokenId}`);
+      }
+    } catch (error) {
+      console.error(`Failed to release token ${tokenId}:`, error);
     }
   }
 
@@ -264,7 +338,7 @@ export class TokenManager extends EventEmitter {
     try {
       // Try to check credits first (if API supports it)
       try {
-        const apiUrl = process.env.GENERATION_API_URL || process.env.SUNO_API_URL || 'https://ai.imgkits.com/suno';
+        const apiUrl = process.env.GENERATION_API_URL || process.env.NEURAL_ENGINE_API_URL || 'https://ai.imgkits.com/suno';
         const creditsResponse = await axios.get(`${apiUrl}/credits`, {
           timeout: 5000,
           headers: {
@@ -292,7 +366,7 @@ export class TokenManager extends EventEmitter {
       }
 
       // Fallback: Validate token haciendo una petición de prueba a la API de generación
-      const apiUrl = process.env.GENERATION_API_URL || process.env.SUNO_API_URL || 'https://ai.imgkits.com/suno';
+      const apiUrl = process.env.GENERATION_API_URL || process.env.NEURAL_ENGINE_API_URL || 'https://ai.imgkits.com/suno';
       const response = await axios.post(`${apiUrl}/generate`, {
         prompt: 'test',
         lyrics: '',
@@ -455,7 +529,7 @@ export class TokenManager extends EventEmitter {
     try {
       // Generate random IV for each encryption
       const iv = crypto.randomBytes(this.ivLength);
-      
+
       // Create cipher
       const cipher = crypto.createCipheriv(
         this.algorithm,
@@ -493,7 +567,7 @@ export class TokenManager extends EventEmitter {
     try {
       // Try to parse as new format (JSON with version)
       let encryptedToken: EncryptedToken;
-      
+
       try {
         encryptedToken = JSON.parse(encryptedTokenString);
       } catch (parseError) {
@@ -589,19 +663,19 @@ export class TokenManager extends EventEmitter {
 
           if (validation.isValid) {
             healthyCount++;
-            
+
             // Update token metadata with credits if available
             if (validation.credits !== undefined) {
-              const metadata = typeof token.metadata === 'string' 
+              const metadata = typeof token.metadata === 'string'
                 ? JSON.parse(token.metadata || '{}')
                 : token.metadata || {};
-              
+
               metadata.credits = validation.credits;
               metadata.lastCreditsCheck = new Date().toISOString();
 
               await this.prisma.token.update({
                 where: { id: token.id },
-                data: { 
+                data: {
                   isValid: true,
                   metadata: JSON.stringify(metadata)
                 }

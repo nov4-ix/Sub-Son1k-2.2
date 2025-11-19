@@ -191,6 +191,88 @@ export function tokenRoutes(tokenManager: TokenManager, tokenPoolService: TokenP
       }
     });
 
+    // PROTECTED: Acquire a token for generation (locks it)
+    fastify.post('/acquire', {
+      preHandler: [authMiddleware]
+    }, async (request, reply) => {
+      const user = (request as any).user;
+      const { tier } = request.body as any; // Optional tier preference
+
+      try {
+        // Use user's tier if not specified, or upgrade if user has access
+        const requestedTier = tier || user.tier;
+        
+        const result = await tokenManager.acquireToken(user.id, requestedTier);
+
+        if (!result) {
+          return reply.code(503).send({
+            success: false,
+            error: {
+              code: 'NO_TOKENS_AVAILABLE',
+              message: 'No healthy tokens available at the moment. Please try again later.'
+            }
+          });
+        }
+
+        return {
+          success: true,
+          data: {
+            token: result.token,
+            tokenId: result.tokenId,
+            message: 'Token acquired successfully'
+          }
+        };
+
+      } catch (error) {
+        console.error('Acquire token error:', error);
+        return reply.code(500).send({
+          success: false,
+          error: {
+            code: 'TOKEN_ACQUIRE_FAILED',
+            message: 'Failed to acquire token'
+          }
+        });
+      }
+    });
+
+    // PROTECTED: Release a token lock (after generation)
+    fastify.post('/release', {
+      preHandler: [authMiddleware]
+    }, async (request, reply) => {
+      const { tokenId } = request.body as any;
+
+      try {
+        if (!tokenId) {
+          return reply.code(400).send({
+            success: false,
+            error: {
+              code: 'TOKEN_ID_REQUIRED',
+              message: 'Token ID is required'
+            }
+          });
+        }
+
+        await tokenManager.releaseToken(tokenId);
+
+        return {
+          success: true,
+          data: {
+            message: 'Token released successfully'
+          }
+        };
+
+      } catch (error) {
+        console.error('Release token error:', error);
+        return reply.code(500).send({
+          success: false,
+          error: {
+            code: 'TOKEN_RELEASE_FAILED',
+            message: 'Failed to release token'
+          }
+        });
+      }
+    });
+
     // Remove token from pool
     fastify.delete('/:tokenId', {
       preHandler: [authMiddleware]

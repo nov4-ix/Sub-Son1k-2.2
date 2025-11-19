@@ -11,10 +11,10 @@ interface LyricGeneratorProps {
   knobs?: any;
 }
 
-export default function LyricGenerator({ 
+export default function LyricGenerator({
   onLyricsGenerated,
   analysis,
-  knobs 
+  knobs
 }: LyricGeneratorProps) {
   const [lyricsInput, setLyricsInput] = useState('');
   const [generatedLyrics, setGeneratedLyrics] = useState('');
@@ -29,60 +29,112 @@ export default function LyricGenerator({
 
     setIsGenerating(true);
     try {
-      // Construir prompt para generación de letras
-      let prompt = lyricsInput.trim();
-      
-      // Agregar contexto del análisis si está disponible
+      // ✅ Usar Groq API directamente para generación inteligente
+      const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+
+      // Construir prompt inteligente basado en contexto del audio y knobs
+      let contextDescription = '';
+
+      // Agregar contexto del análisis de audio
       if (analysis) {
         if (analysis.genre && analysis.genre !== 'unknown') {
-          prompt += `, estilo ${analysis.genre}`;
+          contextDescription += `Género musical: ${analysis.genre}. `;
         }
         if (analysis.bpm) {
-          prompt += `, tempo ${analysis.bpm} BPM`;
+          contextDescription += `Tempo: ${analysis.bpm} BPM. `;
+        }
+        if (analysis.mood) {
+          contextDescription += `Mood: ${analysis.mood}. `;
         }
       }
-      
-      // Agregar contexto de knobs (mood)
+
+      // Agregar contexto de knobs (expresividad, claridad, etc.)
       if (knobs) {
-        const exp = knobs.expressivity;
-        if (exp <= 20) prompt += ', mood triste y melancólico';
-        else if (exp <= 40) prompt += ', mood calmado';
-        else if (exp <= 60) prompt += ', mood equilibrado';
-        else if (exp <= 80) prompt += ', mood alegre y energético';
-        else prompt += ', mood euforico';
+        const exp = knobs.expressivity || 50;
+        if (exp <= 20) contextDescription += 'Estilo emocional: Triste y melancólico. ';
+        else if (exp <= 40) contextDescription += 'Estilo emocional: Calmado y reflexivo. ';
+        else if (exp <= 60) contextDescription += 'Estilo emocional: Equilibrado. ';
+        else if (exp <= 80) contextDescription += 'Estilo emocional: Alegre y energético. ';
+        else contextDescription += 'Estilo emocional: Eufórico e intenso. ';
       }
 
-      // Llamar a API de generación de letras (usar backend o API externa)
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://son1kverse-backend.railway.app';
-      
-      // Intentar usar endpoint del backend si existe
-      const response = await fetch(`${BACKEND_URL}/api/generation/lyrics`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          input: prompt,
-          context: {
-            analysis,
-            knobs
+      const fullPrompt = `Crea letra de canción completa basada en: "${lyricsInput}"
+
+${contextDescription}
+
+REGLAS OBLIGATORIAS:
+1. EMPIEZA DIRECTO con [Verse 1] - NO escribas título
+2. Usa SOLO estas etiquetas: [Verse 1], [Chorus], [Verse 2], [Bridge], [Outro]
+3. NO uses markdown (**), NO uses títulos, NO uses paréntesis ()
+4. Solo letra pura cantable
+5. LÍNEAS CORTAS (máximo 6-8 palabras por línea)
+6. Cada línea debe ser cantable en 2-3 segundos
+
+ESTRUCTURA:
+[Verse 1]
+4 líneas cortas
+
+[Chorus]
+3 líneas pegajosas
+
+[Verse 2]
+4 líneas cortas
+
+[Chorus]
+
+[Bridge]
+2-3 líneas cortas
+
+[Chorus]
+
+[Outro]
+1-2 líneas finales
+
+EMPIEZA DIRECTAMENTE CON [Verse 1].`;
+
+      if (GROQ_API_KEY) {
+        // Usar Groq API
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${GROQ_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: 'llama-3.1-8b-instant',
+            messages: [{ role: 'user', content: fullPrompt }],
+            max_tokens: 1200,
+            temperature: 0.9
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          let lyrics = data.choices[0].message.content.trim();
+
+          // Limpiar formato
+          const verse1Index = lyrics.indexOf('[Verse 1]');
+          if (verse1Index > 0) {
+            lyrics = lyrics.substring(verse1Index);
           }
-        })
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        const lyrics = data.lyrics || data.text || '';
-        setGeneratedLyrics(lyrics);
-        onLyricsGenerated?.(lyrics);
-        toast.success('Letra generada exitosamente');
-      } else {
-        // Fallback: Generación básica local
-        const basicLyrics = generateBasicLyrics(lyricsInput, analysis, knobs);
-        setGeneratedLyrics(basicLyrics);
-        onLyricsGenerated?.(basicLyrics);
-        toast.success('Letra generada (modo básico)');
+          lyrics = lyrics.replace(/^\*\*.*?\*\*\s*/gm, '');
+          lyrics = lyrics.replace(/^#.*$/gm, '');
+          lyrics = lyrics.replace(/\(.*?\)/g, '');
+
+          setGeneratedLyrics(lyrics.trim());
+          onLyricsGenerated?.(lyrics.trim());
+          toast.success('Letra generada con Groq AI!');
+          return;
+        }
       }
+
+      // Fallback: Generación básica local
+      const basicLyrics = generateBasicLyrics(lyricsInput, analysis, knobs);
+      setGeneratedLyrics(basicLyrics);
+      onLyricsGenerated?.(basicLyrics);
+      toast.success('Letra generada (modo básico)');
+
     } catch (error) {
       console.error('Error generating lyrics:', error);
       // Fallback: Generación básica local
@@ -98,7 +150,7 @@ export default function LyricGenerator({
   const generateBasicLyrics = (input: string, analysis?: any, knobs?: any): string => {
     // Generación básica de estructura de letra
     const mood = knobs?.expressivity <= 30 ? 'triste' : knobs?.expressivity >= 70 ? 'alegre' : 'neutral';
-    
+
     return `[Verse 1]
 ${input}
 Reflexionando sobre el tiempo
@@ -139,7 +191,7 @@ Esta es mi canción`;
 
   const copyLyrics = async () => {
     if (!generatedLyrics) return;
-    
+
     try {
       await navigator.clipboard.writeText(generatedLyrics);
       setCopied(true);

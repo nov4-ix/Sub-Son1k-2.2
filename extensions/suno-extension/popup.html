@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -64,8 +65,15 @@
     }
 
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
     }
 
     .status-text {
@@ -244,11 +252,17 @@
     }
 
     @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
     }
   </style>
 </head>
+
 <body>
   <div class="header">
     <h1>
@@ -264,7 +278,7 @@
         <span class="status-text">Extension Active</span>
       </div>
       <div class="status-description">
-        Monitoring Suno.com for token capture
+        Monitoring Neural Engine for token capture
       </div>
     </div>
 
@@ -320,4 +334,5 @@
   <script src="token-validator.js"></script>
   <script src="popup.js"></script>
 </body>
+
 </html>

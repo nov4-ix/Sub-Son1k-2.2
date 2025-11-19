@@ -40,44 +40,14 @@ export default {
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",
+        // Override old cyberpunk colors with corporate ones
+        carbon: "var(--background)",
+        magenta: "var(--secondary)",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-      },
-      animation: {
-        "glitch": "glitch 2s infinite",
-        "glitch-1": "glitch-1 0.5s infinite",
-        "glitch-2": "glitch-2 0.5s infinite",
-        "matrix-fall": "matrix-fall 3s linear infinite",
-      },
-      keyframes: {
-        glitch: {
-          "0%, 100%": { transform: "translate(0)" },
-          "20%": { transform: "translate(-2px, 2px)" },
-          "40%": { transform: "translate(-2px, -2px)" },
-          "60%": { transform: "translate(2px, 2px)" },
-          "80%": { transform: "translate(2px, -2px)" },
-        },
-        "glitch-1": {
-          "0%, 100%": { transform: "translate(0)" },
-          "20%": { transform: "translate(2px, -2px)" },
-          "40%": { transform: "translate(-2px, 2px)" },
-          "60%": { transform: "translate(-2px, -2px)" },
-          "80%": { transform: "translate(2px, 2px)" },
-        },
-        "glitch-2": {
-          "0%, 100%": { transform: "translate(0)" },
-          "20%": { transform: "translate(-2px, -2px)" },
-          "40%": { transform: "translate(2px, -2px)" },
-          "60%": { transform: "translate(2px, 2px)" },
-          "80%": { transform: "translate(-2px, 2px)" },
-        },
-        "matrix-fall": {
-          "0%": { top: "-100%" },
-          "100%": { top: "100%" },
-        },
       },
     },
   },

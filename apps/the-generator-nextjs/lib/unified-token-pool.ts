@@ -84,27 +84,56 @@ export class UnifiedTokenPool {
       await this.syncTokensFromDB()
     }
 
-    // Filtrar solo tokens saludables y no expirados
-    const healthyTokens = this.tokens.filter(t => 
-      t.is_active && 
+    // Filtrar solo tokens saludables, no expirados y NO BLOQUEADOS
+    const healthyTokens = this.tokens.filter(t =>
+      t.is_active &&
       t.health_status === 'healthy' &&
-      new Date(t.expires_at) > new Date()
+      new Date(t.expires_at) > new Date() &&
+      !this.isTokenLocked(t.id)
     )
 
     if (healthyTokens.length === 0) {
-      throw new Error('No healthy tokens available. Please add tokens to the pool.')
+      // Si todos están bloqueados pero hay saludables, esperar un poco (simple retry logic podría ir aquí)
+      throw new Error('No available tokens (all busy or depleted). Please try again in a moment.')
     }
 
     // Rotación round-robin
     const token = healthyTokens[this.currentIndex % healthyTokens.length]
     this.currentIndex = (this.currentIndex + 1) % healthyTokens.length
 
-    // Actualizar uso
-    await this.incrementUsage(token.id)
+    // BLOQUEAR TOKEN
+    this.lockToken(token.id)
+
+    // Actualizar uso (async, no bloquear retorno)
+    this.incrementUsage(token.id).catch(e => console.error('Error incrementing usage:', e))
 
     console.log(`🎯 Token seleccionado: ${token.issuer.substring(0, 10)}... (uso: ${token.usage_count + 1})`)
 
     return token.token
+  }
+
+  // --- LOCKING MECHANISM ---
+  private lockedTokens: Map<string, number> = new Map()
+  private lockDuration: number = 30000 // 30 segundos de bloqueo
+
+  private isTokenLocked(tokenId: string): boolean {
+    const lockTime = this.lockedTokens.get(tokenId)
+    if (!lockTime) return false
+
+    // Verificar si el bloqueo expiró
+    if (Date.now() > lockTime) {
+      this.lockedTokens.delete(tokenId)
+      return false
+    }
+    return true
+  }
+
+  private lockToken(tokenId: string): void {
+    this.lockedTokens.set(tokenId, Date.now() + this.lockDuration)
+  }
+
+  private unlockToken(tokenId: string): void {
+    this.lockedTokens.delete(tokenId)
   }
 
   /**
@@ -115,16 +144,16 @@ export class UnifiedTokenPool {
 
     // Marcar como inactivo en DB
     await this.supabase
-      .from('suno_auth_tokens')
-      .update({ 
+      .from('neural_engine_tokens')
+      .update({
         is_active: false,
         health_status: 'expired'
       })
       .eq('token', invalidToken)
 
     // Actualizar cache local
-    this.tokens = this.tokens.map(t => 
-      t.token === invalidToken 
+    this.tokens = this.tokens.map(t =>
+      t.token === invalidToken
         ? { ...t, is_active: false, health_status: 'expired' as const }
         : t
     )
@@ -157,7 +186,7 @@ export class UnifiedTokenPool {
 
     // Insertar en DB
     const { error } = await this.supabase
-      .from('suno_auth_tokens')
+      .from('neural_engine_tokens')
       .insert({
         token,
         issuer: metadata.issuer,
@@ -207,7 +236,7 @@ export class UnifiedTokenPool {
     }
 
     const { error } = await this.supabase
-      .from('suno_auth_tokens')
+      .from('neural_engine_tokens')
       .insert(tokensData)
 
     if (error && !error.message.includes('duplicate')) {
@@ -227,7 +256,7 @@ export class UnifiedTokenPool {
   private async syncTokensFromDB(): Promise<void> {
     try {
       const { data, error } = await this.supabase
-        .from('suno_auth_tokens')
+        .from('neural_engine_tokens')
         .select('*')
         .order('expires_at', { ascending: false })
 
@@ -332,8 +361,8 @@ export class UnifiedTokenPool {
     try {
       // Marcar tokens expirados como inactivos
       const { error } = await this.supabase
-        .from('suno_auth_tokens')
-        .update({ 
+        .from('neural_engine_tokens')
+        .update({
           is_active: false,
           health_status: 'expired'
         })
@@ -370,13 +399,13 @@ export class UnifiedTokenPool {
 
     // Próxima expiración
     const nextExpiration = active.length > 0
-      ? active.reduce((earliest, t) => 
-          new Date(t.expires_at) < new Date(earliest.expires_at) ? t : earliest
-        ).expires_at
+      ? active.reduce((earliest, t) =>
+        new Date(t.expires_at) < new Date(earliest.expires_at) ? t : earliest
+      ).expires_at
       : null
 
     // ¿Necesita refresh?
-    const needsRefresh = active.length < 2 || 
+    const needsRefresh = active.length < 2 ||
       (nextExpiration && new Date(nextExpiration).getTime() - now.getTime() < 2 * 60 * 60 * 1000)
 
     return {
@@ -406,7 +435,7 @@ export class UnifiedTokenPool {
 
       return {
         issuer: payload.iss || 'unknown',
-        expiresAt: payload.exp 
+        expiresAt: payload.exp
           ? new Date(payload.exp * 1000).toISOString()
           : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // Default 24h
       }
@@ -418,8 +447,8 @@ export class UnifiedTokenPool {
 
   private async incrementUsage(tokenId: string): Promise<void> {
     await this.supabase
-      .from('suno_auth_tokens')
-      .update({ 
+      .from('neural_engine_tokens')
+      .update({
         usage_count: this.supabase.raw('usage_count + 1'),
         last_used: new Date().toISOString()
       })

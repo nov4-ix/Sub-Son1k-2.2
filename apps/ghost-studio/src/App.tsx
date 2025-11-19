@@ -2,13 +2,13 @@
 
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Music, 
-  Upload, 
+import {
+  Music,
+  Upload,
   Send,
   Download,
-  Play, 
-  Pause, 
+  Play,
+  Pause,
   Settings,
   Sparkles
 } from 'lucide-react';
@@ -20,6 +20,7 @@ import TimelineSequencer from './components/TimelineSequencer';
 import TrackAnalyzer from './components/TrackAnalyzer';
 import CreativeKnobs, { KnobSettings } from './components/CreativeKnobs';
 import LyricGenerator from './components/LyricGenerator';
+import DAWInterface from './components/DAWInterface';
 import { useSunoCover } from './hooks/useSunoCover';
 import { supabaseStorage } from './lib/api/supabase-storage';
 import type { AnalysisResult } from './types/studio';
@@ -40,14 +41,14 @@ export function GhostStudio() {
   });
   const [lyrics, setLyrics] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const { 
-    generateCover, 
-    isGenerating, 
-    taskId, 
-    result, 
+
+  const {
+    generateCover,
+    isGenerating,
+    taskId,
+    result,
     error,
-    reset 
+    reset
   } = useSunoCover();
 
   const handleRecordingComplete = (blob: Blob) => {
@@ -92,7 +93,7 @@ export function GhostStudio() {
 
     try {
       const fileToSend = uploadedFile || (audioBlob ? new File([audioBlob], `recording-${Date.now()}.webm`, { type: audioBlob.type }) : null);
-      
+
       if (!fileToSend) {
         toast.error('Error: No hay archivo para enviar');
         return;
@@ -122,7 +123,7 @@ export function GhostStudio() {
       {/* Header */}
       <header className="border-b border-teal-dark bg-bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-mint to-purple rounded-lg flex items-center justify-center">
                 <Music className="w-6 h-6 text-black" />
@@ -130,9 +131,9 @@ export function GhostStudio() {
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-mint via-blue to-purple bg-clip-text text-transparent">
                   GHOST STUDIO
-            </h1>
+                </h1>
                 <p className="text-xs text-lavender font-mono">El portal de creación ritual</p>
-          </div>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
@@ -143,13 +144,13 @@ export function GhostStudio() {
                 <Upload size={18} />
                 Subir Audio
               </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="audio/*"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
               <button className="btn-ghost px-4 py-2 rounded-lg">
                 <Settings size={18} />
               </button>
@@ -161,9 +162,9 @@ export function GhostStudio() {
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
           {/* Códice Quote */}
-                <motion.div
+          <motion.div
             initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
+            animate={{ opacity: 1, y: 0 }}
             className="glass-panel rounded-xl p-4 border-l-4 border-mint"
           >
             <p className="text-sm italic text-gray-400">
@@ -173,7 +174,7 @@ export function GhostStudio() {
           </motion.div>
 
           {/* Timeline Sequencer */}
-          <TimelineSequencer 
+          <TimelineSequencer
             duration={120}
             onTimeChange={(time) => {
               // Handle time change if needed
@@ -187,10 +188,10 @@ export function GhostStudio() {
             {/* Left Column - Audio Input */}
             <div className="xl:col-span-2 space-y-6">
               <AudioRecorder onRecordingComplete={handleRecordingComplete} />
-              
+
               {audioURL && (
-                <Waveform 
-                  url={audioURL} 
+                <Waveform
+                  url={audioURL}
                   isPlaying={isPlaying}
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
@@ -206,7 +207,7 @@ export function GhostStudio() {
                       <p className="text-xs text-gray-400">
                         {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
                       </p>
-                  </div>
+                    </div>
                     <button
                       onClick={() => {
                         setUploadedFile(null);
@@ -219,7 +220,7 @@ export function GhostStudio() {
                       Eliminar
                     </button>
                   </div>
-                  </div>
+                </div>
               )}
 
               {/* Generation Status */}
@@ -230,16 +231,16 @@ export function GhostStudio() {
                     <div>
                       <p className="text-sm font-semibold text-blue">Generando cover...</p>
                       <p className="text-xs text-gray-400">Task ID: {taskId}</p>
-            </div>
-          </div>
-        </div>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* Error Display */}
               {error && (
                 <div className="glass-panel rounded-xl p-4 border-l-4 border-red-500 bg-red-500/10">
                   <p className="text-sm text-red-400">{error}</p>
-              </div>
+                </div>
               )}
 
               {/* Result Display */}
@@ -253,84 +254,8 @@ export function GhostStudio() {
                     >
                       <Download size={18} />
                       Descargar
-                    </button>
-              </div>
-              
-                  <Waveform url={result.audio_url} />
-                  
-                  <div className="flex gap-3">
-                    <button
-                      onClick={reset}
-                      className="btn-ghost px-4 py-2 rounded-lg flex-1"
-                    >
-                      Generar Otro
-                    </button>
-            </div>
-          </div>
-              )}
-                </div>
-
-            {/* Right Column - Controls */}
-            <div className="space-y-6">
-              {/* Track Analyzer */}
-              <TrackAnalyzer
-                audioBlob={audioBlob}
-                audioURL={audioURL}
-                onAnalysisComplete={setAnalysis}
-                enabled={analysisEnabled}
-                onToggle={setAnalysisEnabled}
-              />
-
-              {/* Creative Knobs */}
-              <CreativeKnobs
-                values={knobs}
-                onChange={setKnobs}
-              />
-
-              {/* Lyric Generator */}
-              <LyricGenerator
-                onLyricsGenerated={setLyrics}
-                analysis={analysis}
-                knobs={knobs}
-              />
-
-              {/* Prompt Generator */}
-              <PromptGenerator 
-                onPromptGenerated={setPrompt}
-                analysis={analysis}
-                knobs={knobs}
-                useAnalysis={analysisEnabled}
-                lyrics={lyrics}
-              />
-
-              {/* Send to AI Button */}
-              {(uploadedFile || audioBlob) && prompt && (
-                <div className="glass-panel rounded-xl p-6 space-y-4">
-                  <h3 className="text-lg font-semibold text-lavender">Enviar a IA</h3>
-                  <p className="text-sm text-gray-400">
-                    El audio será procesado y mejorado con producción profesional.
-                  </p>
-                  <button
-                    onClick={handleSendToAI}
-                    disabled={isGenerating || !prompt}
-                    className="btn-neon purple w-full py-3 rounded-lg flex items-center justify-center gap-2"
-                  >
-                    <Send size={18} />
-                    {isGenerating ? 'Generando...' : 'Enviar a Motor de IA'}
-                  </button>
-                </div>
-              )}
-
-              {/* Stats Panel */}
-              <div className="glass-panel rounded-xl p-6 space-y-3">
-                <h3 className="text-lg font-semibold text-lavender">Estadísticas</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Estado:</span>
-                    <span className="text-mint font-mono">
-                      {isGenerating ? 'Generando...' : result ? 'Completado' : 'Listo'}
                     </span>
-                    </div>
+                  </div>
                   {uploadedFile && (
                     <div className="flex justify-between">
                       <span className="text-gray-400">Archivo:</span>
@@ -345,15 +270,15 @@ export function GhostStudio() {
                       <span className="text-blue font-mono text-xs">
                         {prompt.length} chars
                       </span>
-              </div>
-            )}
+                    </div>
+                  )}
+                </div>
+        </div>
           </div>
         </div>
-      </div>
     </div>
-        </div>
-      </main>
-    </div>
+      </main >
+    </div >
   );
 }
 

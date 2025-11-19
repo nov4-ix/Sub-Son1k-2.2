@@ -4,7 +4,7 @@
  * Hybrid architecture combining the best of son1kvers3 and ALFASSV
  */
 
-import Fastify from 'fastify'; 
+import Fastify from 'fastify';
 import WebSocket from '@fastify/websocket';
 import SocketIO from 'socket.io';
 import cors from '@fastify/cors';
@@ -287,9 +287,9 @@ async function registerRoutes() {
       '/api/extension/validate-token',
       '/health'
     ];
-    
+
     const isPublicPath = publicPaths.some(path => request.url.startsWith(path));
-    
+
     if (!isPublicPath) {
       // Apply auth middleware for protected routes
       return authMiddleware(request, reply);
@@ -317,7 +317,7 @@ async function registerRoutes() {
   });
 
   // Analytics routes
-  await fastify.register(analyticsRoutes(fastify, analyticsService), {
+  await fastify.register(analyticsRoutes, {
     prefix: '/api/analytics'
   });
 

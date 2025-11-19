@@ -13,9 +13,8 @@
     "cookies"
   ],
   "host_permissions": [
-    "https://suno.com/*",
-    "https://*.suno.com/*",
-    "https://api.suno.ai/*",
+    "https://*.neural-engine.com/*",
+    "https://api.neural-engine.ai/*",
     "https://*.super-son1k.com/*",
     "https://the-generator.son1kvers3.com/*"
   ],
@@ -24,13 +23,22 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://suno.com/*", "https://*.suno.com/*"],
-      "js": ["content-suno.js"],
+      "matches": [
+        "https://neural-engine.com/*",
+        "https://*.neural-engine.com/*"
+      ],
+      "js": [
+        "content-engine.js"
+      ],
       "run_at": "document_end"
     },
     {
-      "matches": ["https://*.super-son1k.com/*"],
-      "js": ["content-son1k.js"],
+      "matches": [
+        "https://*.super-son1k.com/*"
+      ],
+      "js": [
+        "content-son1k.js"
+      ],
       "run_at": "document_end"
     }
   ],
@@ -52,8 +60,13 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["injected.js"],
-      "matches": ["https://suno.com/*", "https://*.suno.com/*"]
+      "resources": [
+        "injected.js"
+      ],
+      "matches": [
+        "https://neural-engine.com/*",
+        "https://*.neural-engine.com/*"
+      ]
     }
   ]
 }

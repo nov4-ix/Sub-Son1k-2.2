@@ -10,6 +10,7 @@ interface PricingTier {
   name: string
   price: number
   priceId: string
+  generations: number // Added for display
   features: string[]
 }
 
@@ -89,6 +90,7 @@ export const pricingTiers: PricingTier[] = [
     name: 'FREE',
     price: 0,
     priceId: 'free',
+    generations: 5,
     features: [
       '5 generaciones al mes',
       '2 generaciones al día',
@@ -102,6 +104,7 @@ export const pricingTiers: PricingTier[] = [
     name: 'PRO',
     price: 29,
     priceId: 'price_pro_monthly', // Replace with actual Stripe price ID
+    generations: 50,
     features: [
       '50 generaciones al mes',
       '5 generaciones al día',
@@ -116,6 +119,7 @@ export const pricingTiers: PricingTier[] = [
     name: 'PREMIUM',
     price: 99,
     priceId: 'price_premium_monthly', // Replace with actual Stripe price ID
+    generations: 200,
     features: [
       '200 generaciones al mes',
       'Generaciones ilimitadas/día',
@@ -131,6 +135,7 @@ export const pricingTiers: PricingTier[] = [
     name: 'ENTERPRISE',
     price: 0, // Custom pricing
     priceId: 'enterprise',
+    generations: 999999,
     features: [
       'Generaciones ilimitadas',
       'Control total de duración',
