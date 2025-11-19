@@ -1,425 +1,460 @@
-# 🎵 Super-Son1k-2.0 - Complete Implementation Guide
+# 🚀 DEPLOYMENT GUIDE - SON1KVERS3
 
-## 🚀 Project Overview
-
-**Super-Son1k-2.0** is a hybrid AI music creation platform that combines the best features from both `son1kvers3` and `ALFASSV` projects. It features an advanced backend architecture, multiple frontend applications, and a Chrome extension for automatic token capture.
-
-## 📁 Project Structure
-
-```
-Super-Son1k-2.0/
-├── apps/                          # Frontend Applications
-│   ├── web-classic/               # Main Dashboard
-│   ├── the-generator/             # AI Music Generation
-│   ├── ghost-studio/              # Simplified DAW
-│   ├── nova-post-pilot/           # Marketing Intelligence
-│   ├── nexus-visual/              # Immersive Experience
-│   └── sanctuary-social/          # Creator Community
-├── packages/                      # Shared Packages
-│   ├── backend/                   # Advanced Backend API
-│   ├── shared-ui/                 # UI Components
-│   ├── shared-utils/              # Utilities
-│   └── shared-types/              # TypeScript Types
-├── extensions/                    # Chrome Extensions
-│   └── suno-extension/            # Token Capture Extension
-├── docs/                          # Documentation
-├── scripts/                       # Build & Deploy Scripts
-└── deployments/                   # Deployment Configs
-```
-
-## 🏗️ Architecture
-
-### Backend (Advanced from son1kvers3)
-- **Fastify** server with WebSocket support
-- **TokenManager** with automatic rotation and health checks
-- **TokenPoolService** for intelligent token distribution
-- **AnalyticsService** for real-time metrics
-- **CollaborationService** for team features
-- **UserExtensionService** for Chrome extension integration
-
-### Frontend Applications (From ALFASSV)
-- **Web Classic**: Main dashboard with navigation
-- **The Generator**: AI music generation with advanced controls
-- **Ghost Studio**: Simplified DAW for music production
-- **Nova Post Pilot**: Marketing intelligence and content generation
-- **Nexus Visual**: Immersive experience (placeholder)
-- **Sanctuary Social**: Creator community (placeholder)
-
-### Chrome Extension
-- **Automatic token capture** from Suno.com
-- **Real-time sync** with backend
-- **Token validation** and health monitoring
-- **User-friendly popup** interface
-
-## 🛠️ Setup Instructions
-
-### Prerequisites
-- Node.js 18+
-- PostgreSQL 14+
-- Redis 6+
-- Git
-
-### 1. Clone and Install
-```bash
-git clone <repository-url>
-cd Super-Son1k-2.0
-npm install
-```
-
-### 2. Environment Configuration
-```bash
-cp env.example .env.local
-# Edit .env.local with your configuration
-```
-
-### 3. Database Setup
-```bash
-# Start PostgreSQL and Redis
-brew services start postgresql
-brew services start redis
-
-# Create database
-createdb super_son1k
-
-# Run migrations
-npm run db:migrate
-```
-
-### 4. Development Server
-```bash
-# Start all services
-npm run dev
-
-# Or start individually
-npm run dev:backend
-npm run dev:frontend
-```
-
-## 🚀 Deployment Guide
-
-### Backend Deployment (Railway/Render)
-
-1. **Connect Repository**
-   ```bash
-   # Railway
-   railway login
-   railway link
-   
-   # Render
-   render login
-   ```
-
-2. **Environment Variables**
-   ```bash
-   DATABASE_URL=postgresql://...
-   REDIS_URL=redis://...
-   JWT_SECRET=your-secret
-   SUNO_API_URL=https://api.suno.ai/v1
-   SUNO_API_KEY=your-key
-   ```
-
-3. **Deploy**
-   ```bash
-   railway up
-   # or
-   render deploy
-   ```
-
-### Frontend Deployment (Vercel)
-
-1. **Connect Repository**
-   ```bash
-   vercel login
-   vercel link
-   ```
-
-2. **Configure Build**
-   ```json
-   {
-     "buildCommand": "npm run build",
-     "outputDirectory": "dist",
-     "installCommand": "npm install"
-   }
-   ```
-
-3. **Deploy**
-   ```bash
-   vercel --prod
-   ```
-
-### Chrome Extension Deployment
-
-1. **Build Extension**
-   ```bash
-   cd extensions/suno-extension
-   npm run build
-   ```
-
-2. **Package Extension**
-   ```bash
-   zip -r suno-extension.zip . -x "*.DS_Store" "node_modules/*"
-   ```
-
-3. **Upload to Chrome Web Store**
-   - Go to [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole/)
-   - Upload the zip file
-   - Fill in store listing details
-   - Submit for review
-
-## 🔧 Configuration
-
-### Backend Configuration
-
-#### Token Pool Settings
-```typescript
-const TOKEN_POOL_CONFIG = {
-  MIN_TOKENS: 5,
-  MAX_TOKENS: 100,
-  ROTATION_INTERVAL: 300000, // 5 minutes
-  HEALTH_CHECK_INTERVAL: 60000, // 1 minute
-  RATE_LIMIT_PER_TOKEN: 10,
-  CACHE_TTL: 3600 // 1 hour
-}
-```
-
-#### Rate Limiting
-```typescript
-const RATE_LIMITS = {
-  FREE: 10,
-  PREMIUM: 100,
-  ENTERPRISE: 1000
-}
-```
-
-### Frontend Configuration
-
-#### Supabase Setup
-```typescript
-const SUPABASE_CONFIG = {
-  URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-}
-```
-
-#### API Endpoints
-```typescript
-const API_ENDPOINTS = {
-  BACKEND: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
-  SUNO: 'https://api.suno.ai/v1',
-  STRIPE: 'https://api.stripe.com/v1'
-}
-```
-
-## 📊 Monitoring & Analytics
-
-### Health Checks
-- **Backend**: `/health` endpoint
-- **Database**: Connection status
-- **Redis**: Cache status
-- **Token Pool**: Health score
-
-### Metrics
-- **Token Usage**: Per-user tracking
-- **Generation Success Rate**: API reliability
-- **User Engagement**: Feature usage
-- **System Performance**: Response times
-
-### Logging
-```typescript
-// Structured logging
-logger.info('Token captured', {
-  tokenId: token.id,
-  source: 'extension',
-  userId: user.id,
-  timestamp: new Date().toISOString()
-})
-```
-
-## 🔐 Security
-
-### Authentication
-- **JWT tokens** with expiration
-- **OAuth integration** (Google, Facebook)
-- **Rate limiting** per user tier
-- **CSRF protection**
-
-### Token Security
-- **Encryption** for stored tokens
-- **Rotation** to prevent overuse
-- **Validation** before use
-- **Audit logging** for all operations
-
-### API Security
-- **CORS** configuration
-- **Helmet** for security headers
-- **Input validation** with Zod
-- **Error handling** without data leakage
-
-## 🧪 Testing
-
-### Backend Tests
-```bash
-cd packages/backend
-npm test
-```
-
-### Frontend Tests
-```bash
-cd apps/web-classic
-npm test
-```
-
-### Extension Tests
-```bash
-cd extensions/suno-extension
-npm test
-```
-
-## 📈 Performance Optimization
-
-### Backend
-- **Connection pooling** for database
-- **Redis caching** for frequent queries
-- **Token rotation** to prevent rate limits
-- **Compression** for API responses
-
-### Frontend
-- **Code splitting** with dynamic imports
-- **Image optimization** with WebP
-- **Lazy loading** for components
-- **Service worker** for caching
-
-### Extension
-- **Minimal DOM manipulation**
-- **Efficient event listeners**
-- **Background processing**
-- **Storage optimization**
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Backend Issues
-```bash
-# Database connection failed
-npm run db:push
-
-# Redis connection failed
-redis-cli ping
-
-# Token validation failed
-npm run db:generate
-```
-
-#### Frontend Issues
-```bash
-# Build failed
-npm run build
-
-# Supabase connection failed
-# Check environment variables
-
-# API calls failing
-# Check CORS configuration
-```
-
-#### Extension Issues
-```bash
-# Extension not loading
-# Check manifest.json
-
-# Token capture not working
-# Check content script permissions
-
-# Sync failing
-# Check backend API endpoint
-```
-
-## 📚 API Documentation
-
-### Authentication Endpoints
-```
-POST /api/auth/login
-POST /api/auth/register
-POST /api/auth/oauth/google
-POST /api/auth/oauth/facebook
-POST /api/auth/logout
-```
-
-### Token Management
-```
-GET /api/tokens
-POST /api/tokens
-PUT /api/tokens/:id
-DELETE /api/tokens/:id
-POST /api/tokens/sync
-```
-
-### Generation Endpoints
-```
-POST /api/generate
-GET /api/generate/:id
-GET /api/generate/user/:userId
-```
-
-### Analytics Endpoints
-```
-GET /api/analytics/events
-POST /api/analytics/events
-GET /api/analytics/metrics
-```
-
-## 🎯 Roadmap
-
-### Phase 1: Core Features ✅
-- [x] Backend architecture
-- [x] Frontend applications
-- [x] Chrome extension
-- [x] Authentication system
-
-### Phase 2: Advanced Features 🚧
-- [ ] Real-time collaboration
-- [ ] Advanced analytics
-- [ ] Mobile app
-- [ ] API marketplace
-
-### Phase 3: Enterprise Features 📋
-- [ ] White-label solutions
-- [ ] Custom integrations
-- [ ] Advanced security
-- [ ] Compliance features
-
-## 🤝 Contributing
-
-### Development Workflow
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
-
-### Code Standards
-- **TypeScript** for type safety
-- **ESLint** for code quality
-- **Prettier** for formatting
-- **Conventional commits** for messages
-
-## 📞 Support
-
-### Documentation
-- [API Documentation](https://docs.super-son1k.com)
-- [User Guide](https://guide.super-son1k.com)
-- [Developer Guide](https://dev.super-son1k.com)
-
-### Community
-- [Discord Server](https://discord.gg/super-son1k)
-- [GitHub Issues](https://github.com/super-son1k/issues)
-- [Email Support](mailto:support@super-son1k.com)
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Este archivo te guía paso a paso para deployar todo el ecosistema.
 
 ---
 
-**Super-Son1k-2.0** - The future of AI music creation 🎵✨
+## 📋 PRE-REQUISITOS
+
+### Cuentas Necesarias
+- ✅ GitHub cuenta (para código fuente)
+- ✅ Railway cuenta (para backend)
+- ✅ Vercel cuenta (para frontends)
+- ✅ Groq API key (https://console.groq.com)
+- ⚠️ Stripe cuenta (opcional, para pagos)
+
+### URLs de Referencia
+- **Groq Console**: https://console.groq.com/keys
+- **Railway**: https://railway.app
+- **Vercel**: https://vercel.com
+
+---
+
+## 🔧 PASO 1: BACKEND EN RAILWAY
+
+### 1.1 Crear Proyecto en Railway
+
+```bash
+# Opción A: Railway CLI
+npm i -g @railway/cli
+railway login
+railway init
+railway link
+
+# Opción B: Dashboard Web
+# 1. Ve a https://railway.app/new
+# 2. Click "Deploy from GitHub repo"
+# 3. Selecciona: Sub-Son1k-2.2
+# 4. Root directory: packages/backend
+```
+
+### 1.2 Configurar Variables de Entorno
+
+En Railway Dashboard → Variables:
+
+```env
+# Groq AI
+GROQ_API_KEY=gsk_...
+
+# Database (Railway lo provee automáticamente)
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+
+# Suno API (Neural Engine)
+SUNO_API_URL=https://ai.imgkits.com/suno
+SUNO_POLLING_URL=https://usa.imgkits.com/node-api/suno
+
+# Seguridad
+JWT_SECRET=TU_SECRET_SUPER_SEGURO_AQUI
+BACKEND_SECRET=TU_BACKEND_SECRET_AQUI
+
+# CORS
+ALLOWED_ORIGINS=https://classic.son1kvers3.com,https://nexus.son1kvers3.com
+
+# Node
+NODE_VERSION=18
+NODE_ENV=production
+```
+
+### 1.3 Agregar PostgreSQL Database
+
+```bash
+# En Railway Dashboard:
+# 1. Click "+ New"
+# 2. Selecciona "Database"
+# 3. Escoge "PostgreSQL"
+# 4. Conecta al servicio backend
+```
+
+### 1.4 Deploy Backend
+
+```bash
+# Si usas CLI:
+railway up
+
+# O desde Dashboard:
+# Click "Deploy" (automático con GitHub conectado)
+```
+
+### 1.5 Obtener URL del Backend
+
+```bash
+# CLI:
+railway domain
+
+# Dashboard:
+# Settings → Generate Domain
+# Ejemplo: https://son1kverse-backend.up.railway.app
+```
+
+**📝 GUARDA ESTA URL**: La necesitarás para los frontends
+
+---
+
+## 💻 PASO 2: FRONTENDS EN VERCEL
+
+### 2.1 Web Classic (Xentric Corp)
+
+#### Conectar Repositorio
+```bash
+# Opción A: Vercel CLI
+npm i -g vercel
+cd apps/web-classic
+vercel
+
+# Opción B: Dashboard
+# 1. Ve a https://vercel.com/new
+# 2. Import Git Repository
+# 3. Selecciona: Sub-Son1k-2.2
+# 4. Framework Preset: Vite
+# 5. Root Directory: apps/web-classic
+```
+
+#### Configurar Variables de Entorno
+
+En Vercel Dashboard → Settings → Environment Variables:
+
+```env
+VITE_GROQ_API_KEY=gsk_...
+VITE_BACKEND_URL=https://son1kverse-backend.up.railway.app
+VITE_BACKEND_SECRET=TU_BACKEND_SECRET_AQUI
+VITE_STRIPE_PUBLISHABLE_KEY=pk_live_... (o pk_test_...)
+VITE_NEXUS_URL=https://nexus.son1kvers3.com
+```
+
+#### Build Settings
+
+```
+Build Command: pnpm build
+Output Directory: dist
+Install Command: pnpm install
+Node Version: 18.x
+```
+
+#### Deploy
+
+```bash
+# CLI:
+vercel --prod
+
+# Dashboard:
+# Click "Deploy" (automático)
+```
+
+#### Configurar Dominio Personalizado
+
+```
+Settings → Domains → Add Domain
+- classic.son1kvers3.com
+- www.son1kvers3.com (redirect a classic)
+```
+
+---
+
+### 2.2 Nexus Visual (SON1KVERS3)
+
+#### Conectar Repositorio
+
+```bash
+# CLI:
+cd apps/nexus-visual
+vercel
+
+# Dashboard:
+# 1. New Project
+# 2. Import Git Repository
+# 3. Root Directory: apps/nexus-visual
+# 4. Framework: Vite
+```
+
+#### Variables de Entorno
+
+```env
+VITE_BACKEND_URL=https://son1kverse-backend.up.railway.app
+VITE_GROQ_API_KEY=gsk_...
+```
+
+#### Build Settings
+
+```
+Build Command: pnpm build
+Output Directory: dist
+Install Command: pnpm install
+Node Version: 18.x
+```
+
+#### Deploy y Dominio
+
+```bash
+# Deploy
+vercel --prod
+
+# Dominio personalizado
+nexus.son1kvers3.com
+```
+
+---
+
+### 2.3 The Generator (Next.js) - OPCIONAL
+
+Si quieres deployar la versión standalone de Next.js:
+
+```bash
+cd apps/the-generator-nextjs
+vercel
+
+# Variables:
+GROQ_API_KEY=gsk_...
+NEXT_PUBLIC_BACKEND_URL=https://son1kverse-backend.up.railway.app
+
+# Dominio:
+generator.son1kvers3.com
+```
+
+---
+
+## 🔗 PASO 3: CONECTAR TODO
+
+### 3.1 Actualizar URLs en el Código
+
+Una vez que tengas los dominios, actualiza:
+
+#### En `web-classic/src/main.tsx`:
+```typescript
+// Línea ~34: handleTransitionComplete
+window.location.href = 'https://nexus.son1kvers3.com'
+```
+
+#### En `web-classic/src/components/TransitionOverlay.tsx`:
+```typescript
+// onComplete callback debe llevar a producción
+```
+
+### 3.2 Actualizar CORS en Backend
+
+Railway → Backend → Variables:
+```env
+ALLOWED_ORIGINS=https://classic.son1kvers3.com,https://nexus.son1kvers3.com,https://generator.son1kvers3.com
+```
+
+### 3.3 Redeploy Todo
+
+```bash
+# Backend (Railway)
+railway up
+
+# Web Classic (Vercel)
+cd apps/web-classic
+vercel --prod
+
+# Nexus Visual (Vercel)
+cd apps/nexus-visual
+vercel --prod
+```
+
+---
+
+## ✅ PASO 4: VERIFICACIÓN
+
+### 4.1 Check Backend
+
+```bash
+curl https://son1kverse-backend.up.railway.app/health
+
+# Debe retornar:
+# {"status":"ok","timestamp":"..."}
+```
+
+### 4.2 Check Web Classic
+
+1. Abre https://classic.son1kvers3.com
+2. Verifica que carga correctamente
+3. Prueba "Generator" → Verifica llamadas a Groq
+4. Prueba "AI Assistant" → Verifica Pixel AI
+
+### 4.3 Check Easter Egg
+
+1. En Web Classic, presiona: `Cmd + Option + H`
+2. Observa transición épica
+3. Verifica redirección a: https://nexus.son1kvers3.com
+4. Confirma que Nexus Visual carga
+
+### 4.4 Check Nexus Visual
+
+1. Verifica Matrix Rain background
+2. Click "Access Codex"
+3. Navega entre vistas
+4. Prueba cambio de idioma (ES/EN)
+
+### 4.5 Check Generación de Música
+
+1. En The Generator:
+   - Genera letra con Groq
+   - Genera prompt musical
+   - Haz generación completa
+   - Verifica polling con backend
+   - Prueba reproducción y descarga
+
+---
+
+## 🔒 PASO 5: SEGURIDAD
+
+### 5.1 Proteger API Keys
+
+**NUNCA** hagas commit de:
+
+```env
+GROQ_API_KEY
+STRIPE_SECRET_KEY
+JWT_SECRET
+DATABASE_URL
+```
+
+### 5.2 Configurar Rate Limiting
+
+El backend ya tiene rate limiting, pero verifica que esté activo:
+
+```typescript
+// packages/backend/src/middleware/rateLimiter.ts
+// Ya está configurado ✅
+```
+
+### 5.3 HTTPS Forzado
+
+Railway y Vercel ya fuerzan HTTPS automáticamente ✅
+
+---
+
+## 📊 PASO 6: MONITOREO
+
+### 6.1 Railway Logs
+
+```bash
+# CLI
+railway logs
+
+# Dashboard
+# Deploy → Logs (real-time)
+```
+
+### 6.2 Vercel Analytics
+
+```
+Dashboard → Analytics
+- Page views
+- Build times
+- Error rates
+```
+
+### 6.3 Groq Usage
+
+```
+https://console.groq.com/usage
+- Tokens usados
+- Rate limits
+- Costs
+```
+
+---
+
+## 🆘 TROUBLESHOOTING
+
+### Backend no responde
+```bash
+# Check logs
+railway logs
+
+# Restart service
+railway restart
+
+# Check variables
+railway variables
+```
+
+### Frontend muestra error CORS
+```bash
+# Verificar ALLOWED_ORIGINS en Railway
+railway variables
+
+# Debe incluir tu dominio de Vercel
+```
+
+### Groq API error 429 (Rate Limit)
+```bash
+# Espera 1 minuto
+# O upgrade a plan de pago en Groq
+```
+
+### Build falla en Vercel
+```bash
+# Check build logs en Vercel Dashboard
+# Verifica que pnpm install funcione local
+cd apps/web-classic
+pnpm install
+pnpm build
+```
+
+---
+
+## 📝 CHECKLIST FINAL
+
+```markdown
+Backend (Railway):
+- [ ] PostgreSQL database creada
+- [ ] Variables de entorno configuradas
+- [ ] Deploy exitoso
+- [ ] Health check pasa: /health
+- [ ] URL guardada
+
+Web Classic (Vercel):
+- [ ] Repo conectado
+- [ ] Variables configuradas
+- [ ] Build exitoso
+- [ ] Dominio personalizado asignado
+- [ ] Easter Egg funciona
+
+Nexus Visual (Vercel):
+- [ ] Repo conectado
+- [ ] Variables configuradas
+- [ ] Build exitoso
+- [ ] Dominio personalizado asignado
+- [ ] Matrix Rain se ve
+
+Integración:
+- [ ] Easter Egg redirige a Nexus correcto
+- [ ] Generación de música funciona
+- [ ] Groq AI responde (letra + prompt)
+- [ ] Pixel AI conversa
+- [ ] Downloads funcionan
+
+Seguridad:
+- [ ] HTTPS forzado (automático)
+- [ ] API keys en variables (no en código)
+- [ ] CORS configurado correctamente
+- [ ] Rate limiting activo
+```
+
+---
+
+## 🎉 ¡LISTO!
+
+Tu ecosistema SON1KVERS3 está en producción:
+
+- 🌐 **Web Classic**: https://classic.son1kvers3.com
+- 🚀 **Nexus Visual**: https://nexus.son1kvers3.com
+- ⚙️ **Backend API**: https://son1kverse-backend.up.railway.app
+
+---
+
+**Creado**: 2025-11-19  
+**Mantenedor**: Sub-Son1k Team  
+**Soporte**: La Resistencia (Ctrl+Alt+Humanity)
