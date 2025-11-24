@@ -19,7 +19,7 @@ const saveConversationSchema = z.object({
 const saveMemorySchema = z.object({
     type: z.enum(['note', 'preference', 'learning', 'achievement']),
     content: z.string().min(1),
-    metadata: z.record(z.any()).optional()
+    metadata: z.record(z.string(), z.any()).optional()
 });
 
 const updateProfileSchema = z.object({
@@ -32,7 +32,7 @@ const updateProfileSchema = z.object({
     learnings: z.object({
         topics: z.array(z.string()).optional(),
         skills: z.array(z.string()).optional(),
-        patterns: z.record(z.any()).optional()
+        patterns: z.record(z.string(), z.any()).optional()
     }).optional()
 });
 
@@ -46,7 +46,7 @@ export async function pixelMemoryRoutes(fastify: FastifyInstance) {
 
         const messages = body.messages.map(m => ({
             ...m,
-            timestamp: new Date(m.timestamp)
+            timestamp: new Date(m.timestamp).getTime()
         }));
 
         const success = await pixelMemoryService.saveConversation(
@@ -100,7 +100,7 @@ export async function pixelMemoryRoutes(fastify: FastifyInstance) {
 
         const success = await pixelMemoryService.updateUserProfile(
             user.userId,
-            updates
+            updates as any
         );
 
         if (!success) {

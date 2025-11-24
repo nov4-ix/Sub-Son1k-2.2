@@ -1,0 +1,678 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Logo } from './Logo';
+import { Play, Sparkles, Wand2, Image as ImageIcon, MessageSquare, Users, SkipBack, SkipForward, Music, Pause, Volume2 } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
+
+export const TheGeneratorExpress = () => {
+    const [prompt, setPrompt] = useState('');
+    const [voiceType, setVoiceType] = useState<'male' | 'female' | null>(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generationMessage, setGenerationMessage] = useState('');
+    const [trackUrl, setTrackUrl] = useState<string | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [duration, setDuration] = useState(0);
+    const [currentTime, setCurrentTime] = useState(0);
+
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    const handleGenerate = async () => {
+        if (!prompt.trim()) {
+            toast.error('Por favor describe tu canción primero');
+            return;
+        }
+
+        setIsGenerating(true);
+        setGenerationMessage('Iniciando...');
+        setTrackUrl(null);
+        setIsPlaying(false);
+
+        try {
+            const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://sub-son1k-2-2.fly.dev';
+            const BACKEND_SECRET = import.meta.env.VITE_BACKEND_SECRET || 'son1k-backend-secret-2024-prod';
+
+            // Construct prompt with voice type if selected
+            let finalPrompt = prompt;
+            if (voiceType) {
+                finalPrompt += ` [${voiceType === 'male' ? 'Male Vocals' : 'Female Vocals'}]`;
+            }
+
+            setGenerationMessage('Conectando con Neural Engine...');
+
+            const response = await fetch(`${BACKEND_URL}/api/generation/create`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${BACKEND_SECRET}`
+                },
+                body: JSON.stringify({
+                    prompt: finalPrompt,
+                    style: 'custom', // Use prompt as style/description
+                    duration: 120,
+                    quality: 'standard',
+                    custom_mode: false // Simple mode for Express
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Error del servidor: ${errorText}`);
+            }
+
+            const data = await response.json();
+            const generationId = data.data?.generationId || data.generationId;
+            const sunoId = data.data?.sunoId || data.sunoId;
+
+            if (!generationId) throw new Error('No se recibió ID de generación');
+
+            setGenerationMessage('Generando audio (esto toma unos segundos)...');
+            pollTrackStatus(generationId);
+
+        } catch (error: any) {
+            console.error('Generation error:', error);
+            toast.error(error.message || 'Error al generar canción');
+            setIsGenerating(false);
+            setGenerationMessage('');
+        }
+    };
+
+    const pollTrackStatus = async (generationId: string) => {
+        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://sub-son1k-2-2.fly.dev';
+        const BACKEND_SECRET = import.meta.env.VITE_BACKEND_SECRET || 'son1k-backend-secret-2024-prod';
+
+        let attempts = 0;
+        const maxAttempts = 60; // 5 minutes
+
+        const checkStatus = async () => {
+            if (attempts >= maxAttempts) {
+                toast.error('Tiempo de espera agotado');
+                setIsGenerating(false);
+                return;
+            }
+
+            attempts++;
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/generation/${generationId}/status`, {
+                    headers: { 'Authorization': `Bearer ${BACKEND_SECRET}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const gen = data.data;
+
+                    if (gen && gen.status === 'completed' && gen.audioUrl) {
+                        setTrackUrl(gen.audioUrl);
+                        setIsGenerating(false);
+                        setGenerationMessage('¡Canción generada!');
+                        toast.success('¡Tu canción está lista!');
+                        return;
+                    } else if (gen && gen.status === 'failed') {
+                        throw new Error(gen.error || 'La generación falló');
+                    }
+                }
+
+                // Continue polling
+                setTimeout(checkStatus, 5000);
+            } catch (error: any) {
+                console.error('Polling error:', error);
+                // Don't stop polling on transient errors unless critical
+                setTimeout(checkStatus, 5000);
+            }
+        };
+
+        setTimeout(checkStatus, 3000);
+    };
+
+    const togglePlay = () => {
+        if (audioRef.current) {
+            if (isPlaying) {
+                audioRef.current.pause();
+            } else {
+                audioRef.current.play();
+            }
+            setIsPlaying(!isPlaying);
+        }
+    };
+
+    const handleTimeUpdate = () => {
+        if (audioRef.current) {
+            setCurrentTime(audioRef.current.currentTime);
+            setDuration(audioRef.current.duration || 0);
+        }
+    };
+
+    const handleEnded = () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+    };
+
+    const formatTime = (time: number) => {
+        const minutes = Math.floor(time / 60);
+        const seconds = Math.floor(time % 60);
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    return (
+        <div className="min-h-screen bg-[#171925] text-white font-sans selection:bg-[#B858FE]/30">
+            {/* Institutional Header - Sober & Professional */}
+            <header className="relative bg-[#171925]/95 backdrop-blur-sm border-b border-white/5 sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-6 py-4">
+                    <div className="flex items-center justify-between">
+                        {/* Brand - Minimal & Corporate */}
+                        <div className="flex items-center gap-3">
+                            <Logo size={48} />
+                            <div className="border-l border-white/10 pl-3">
+                                <h1 className="text-xl font-light tracking-wider text-white">
+                                    SON1KVERS<span className="font-normal">3</span>
+                                </h1>
+                                <p className="text-[10px] text-white/40 uppercase tracking-widest">Music Generation Platform</p>
+                            </div>
+                        </div>
+
+                        {/* Navigation - Clean & Structured */}
+                        <nav className="hidden md:flex items-center gap-8">
+                            <a href="#generator" className="text-[13px] text-white/60 hover:text-white uppercase tracking-wider font-light transition-colors">
+                                Generator
+                            </a>
+                            <a href="#archivo" className="text-[13px] text-white/60 hover:text-white uppercase tracking-wider font-light transition-colors">
+                                Archive
+                            </a>
+                            <a href="#herramientas" className="text-[13px] text-white/60 hover:text-white uppercase tracking-wider font-light transition-colors">
+                                Tools
+                            </a>
+                            <a href="#about" className="text-[13px] text-white/60 hover:text-white uppercase tracking-wider font-light transition-colors">
+                                About
+                            </a>
+                        </nav>
+
+                        {/* Actions - Minimal & Professional */}
+                        <div className="flex items-center gap-4">
+                            <button className="text-[13px] text-white/60 hover:text-white uppercase tracking-wider font-light transition-colors px-4 py-2">
+                                Sign In
+                            </button>
+                            <button className="text-[13px] bg-white text-black uppercase tracking-wider font-light px-6 py-2 hover:bg-white/90 transition-colors">
+                                Get Started
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            {/* Hero / Generator Section */}
+            <section className="py-20 px-6">
+                <div className="max-w-5xl mx-auto">
+                    <div className="text-center mb-12">
+                        <div className="mb-6 flex flex-col items-center">
+                            <img src="/son1k-logo.png" alt="Son1kvers3 Logo" className="w-32 h-32 object-contain mb-6" />
+                            <h1 className="text-5xl font-light tracking-widest uppercase mb-4 text-[#BCAACD]">[Son1kvers3]</h1>
+                        </div>
+                        <h2 className="text-4xl font-light mb-2 tracking-tight text-white/80">
+                            Ctrl+Alt= <span className="bg-gradient-to-r from-[#B858FE] to-[#047AF6] bg-clip-text text-transparent">Humanity</span>
+                        </h2>
+                    </div>
+
+                    <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border-2 border-white/5 shadow-2xl">
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-white/70 mb-3 tracking-wide">Describe tu canción</label>
+                            <textarea
+                                placeholder="Ej: Una balada electrónica sobre la nostalgia con voces etéreas y sintetizadores ambient..."
+                                className="w-full bg-white/5 border border-white/10 text-white placeholder:text-white/30 rounded-xl px-5 py-4 text-base resize-none focus:outline-none focus:ring-2 focus:ring-[#B858FE] focus:border-transparent transition-all"
+                                rows={3}
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                            ></textarea>
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-white/70 mb-3 tracking-wide">Tipo de voz</label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={() => setVoiceType('male')}
+                                    className={`group relative overflow-hidden rounded-xl border-2 ${voiceType === 'male' ? 'border-[#B858FE] bg-white/10' : 'border-white/10 bg-white/5'} p-4 text-left transition-all hover:border-[#B858FE]/50 hover:bg-white/10`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#047AF6] to-[#B858FE] flex items-center justify-center">
+                                            <Users className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-white">Voz Masculina</p>
+                                            <p className="text-xs text-white/50">Tono grave y profundo</p>
+                                        </div>
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => setVoiceType('female')}
+                                    className={`group relative overflow-hidden rounded-xl border-2 ${voiceType === 'female' ? 'border-[#40FDAE] bg-white/10' : 'border-white/10 bg-white/5'} p-4 text-left transition-all hover:border-[#40FDAE]/50 hover:bg-white/10`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#15A4A2] to-[#40FDAE] flex items-center justify-center">
+                                            <Users className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-white">Voz Femenina</p>
+                                            <p className="text-xs text-white/50">Tono agudo y claro</p>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-white/70 mb-3 tracking-wide">Estilo musical (opcional)</label>
+                            <input
+                                type="text"
+                                placeholder="Ej: synthwave oscuro con toques de jazz, trap melódico, ambient experimental..."
+                                className="w-full bg-white/5 border border-white/10 text-white placeholder:text-white/30 rounded-xl px-5 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#B858FE] focus:border-transparent transition-all"
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                            />
+                            <p className="text-xs text-white/40 mt-2">Describe libremente el estilo que imaginas. Sin límites.</p>
+                        </div>
+
+
+                        <button
+                            onClick={handleGenerate}
+                            disabled={isGenerating}
+                            className="inline-flex items-center justify-center whitespace-nowrap transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95 bg-white/10 hover:bg-white/20 border border-white/10 px-4 py-2 w-full h-14 bg-gradient-to-r from-[#40FDAE] to-[#15A4A2] text-[#171925] font-semibold text-lg rounded-xl hover:shadow-[0_0_20px_rgba(64,253,174,0.3)]"
+                        >
+                            {isGenerating ? (
+                                <span className="animate-pulse">{generationMessage || 'Generando...'}</span>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-5 h-5 mr-2" />
+                                    Generar Canción
+                                </>
+                            )}
+                        </button>
+                        <p className="text-center text-xs text-white/40 mt-4">La generación puede tardar entre 30-60 segundos</p>
+                    </div>
+                </div>
+            </section>
+
+            {/* El Archivo Section */}
+            <section className="py-16 px-6 bg-gradient-to-b from-transparent to-[#122024]/30">
+                <div className="max-w-7xl mx-auto">
+                    <div className="flex items-center justify-between mb-8">
+                        <h3 className="text-3xl font-bold">El Archivo</h3>
+                        <button className="text-[#15A4A2] hover:text-[#40FDAE] text-sm font-medium">Ver todas →</button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {[
+                            { title: 'Ecos del Futuro', author: 'Usuario', plays: '2.4K', time: '3:24' },
+                            { title: 'Resonancia Digital', author: 'CreadorX', plays: '1.8K', time: '2:56' },
+                            { title: 'Fragmentos de Luz', author: 'SonikoAI', plays: '3.1K', time: '4:12' },
+                            { title: 'Imperfección Perfecta', author: 'VanguardBeats', plays: '4.5K', time: '3:48' },
+                        ].map((song, i) => (
+                            <div key={i} className="rounded-xl border border-white/10 bg-[#1C232E] hover:border-[#B858FE]/50 transition-all group cursor-pointer overflow-hidden">
+                                <div className="p-0">
+                                    <div className="aspect-square bg-gradient-to-br from-[#15333B] to-[#15A4A2] relative overflow-hidden">
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                                            <button className="w-16 h-16 rounded-full bg-gradient-to-r from-[#B858FE] to-[#047AF6] flex items-center justify-center text-white">
+                                                <Play className="w-6 h-6 fill-current" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="p-4">
+                                        <h4 className="font-semibold mb-1 text-white">{song.title}</h4>
+                                        <p className="text-sm text-white/50 mb-2">{song.author}</p>
+                                        <div className="flex items-center justify-between text-xs text-white/40">
+                                            <span>{song.plays} reproducciones</span>
+                                            <span>{song.time}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Top 10 Section */}
+            <section className="py-16 px-6">
+                <div className="max-w-5xl mx-auto">
+                    <h3 className="text-3xl font-bold mb-8 text-center">Top 10 de la Semana</h3>
+                    <div className="bg-white/5 backdrop-blur-md rounded-2xl p-8 border border-white/10">
+                        <div className="space-y-3 mb-6 max-h-96 overflow-y-auto pr-2">
+                            {[...Array(10)].map((_, i) => (
+                                <div key={i} className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
+                                    <span className="text-2xl font-bold text-[#B858FE] w-8">{i + 1}</span>
+                                    <div className="w-12 h-12 rounded bg-gradient-to-br from-[#B858FE] to-[#047AF6]"></div>
+                                    <div className="flex-1">
+                                        <p className="font-medium text-white">Canción Trending #{i + 1}</p>
+                                        <p className="text-sm text-white/50">Artista • {12 - i}K plays</p>
+                                    </div>
+                                    <span className="text-sm text-white/40">3:{20 + i * 3}</span>
+                                    <button className="text-white/70 hover:text-[#40FDAE] opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Play className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Player Bar */}
+                        <div className="border-t border-white/10 pt-6">
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className={`w-16 h-16 rounded-lg bg-gradient-to-br ${trackUrl ? 'from-[#B858FE] to-[#047AF6]' : 'from-[#15A4A2] to-[#40FDAE]'} flex items-center justify-center`}>
+                                    {trackUrl ? <Music className="w-8 h-8 text-white" /> : <div className="w-full h-full" />}
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-semibold text-white">{trackUrl ? 'Tu Creación Musical' : 'Selecciona una canción'}</p>
+                                    <p className="text-sm text-white/50">{trackUrl ? 'Generado con Neural Engine' : 'Esperando...'}</p>
+                                </div>
+                            </div>
+
+                            <div className="relative flex w-full touch-none select-none items-center mb-4 h-1.5 bg-white/10 rounded-full overflow-hidden cursor-pointer"
+                                onClick={(e) => {
+                                    if (!audioRef.current || !duration) return;
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const percent = (e.clientX - rect.left) / rect.width;
+                                    audioRef.current.currentTime = percent * duration;
+                                }}>
+                                <div
+                                    className="h-full bg-gradient-to-r from-[#B858FE] to-[#047AF6] transition-all duration-100"
+                                    style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
+                                ></div>
+                            </div>
+
+                            <div className="flex items-center justify-between text-xs text-white/40 mb-4">
+                                <span>{formatTime(currentTime)}</span>
+                                <span>{formatTime(duration)}</span>
+                            </div>
+
+                            <div className="flex items-center justify-center gap-4">
+                                <button className="text-white/70 hover:text-white" onClick={() => {
+                                    if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 10);
+                                }}>
+                                    <SkipBack className="w-5 h-5" /></button>
+
+                                <button
+                                    onClick={togglePlay}
+                                    disabled={!trackUrl}
+                                    className={`w-12 h-12 rounded-full bg-gradient-to-r from-[#B858FE] to-[#047AF6] flex items-center justify-center text-white hover:scale-105 transition-transform ${!trackUrl && 'opacity-50 cursor-not-allowed'}`}
+                                >
+                                    {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
+                                </button>
+
+                                <button className="text-white/70 hover:text-white" onClick={() => {
+                                    if (audioRef.current) audioRef.current.currentTime = Math.min(duration, audioRef.current.currentTime + 10);
+                                }}>
+                                    <SkipForward className="w-5 h-5" /></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* El Santuario Promo */}
+            <section className="py-16 px-6">
+                <div className="max-w-6xl mx-auto">
+                    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#15333B] via-[#15A4A2] to-[#40FDAE] p-[2px]">
+                        <div className="bg-[#171925] rounded-3xl p-12 text-center">
+                            <div className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold mb-4 bg-[#40FDAE]/20 text-[#40FDAE] border-[#40FDAE]/30">
+                                Próximamente
+                            </div>
+                            <h3 className="text-4xl font-bold mb-4">El Santuario</h3>
+                            <p className="text-lg text-white/60 max-w-2xl mx-auto mb-6">
+                                Una red social revolucionaria para creadores. Comparte, colabora y conecta con artistas de todo el mundo. Un espacio sagrado donde cada voz imperfecta encuentra su lugar.
+                            </p>
+                            <button className="inline-flex items-center justify-center whitespace-nowrap rounded-lg font-medium bg-gradient-to-r from-[#B858FE] to-[#047AF6] text-white px-8 py-6 text-lg hover:opacity-90 transition-opacity">
+                                <Users className="w-5 h-5 mr-2" />
+                                Únete a la lista de espera
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Tools Section */}
+            <section className="py-16 px-6 bg-gradient-to-b from-transparent to-[#122024]/30">
+                <div className="max-w-7xl mx-auto">
+                    <h3 className="text-3xl font-bold mb-12 text-center">Herramientas Creativas</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <a href="/generator" className="block rounded-xl border border-white/10 bg-[#1C232E] hover:border-[#B858FE]/50 transition-all group cursor-pointer p-6">
+                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#B858FE] to-[#047AF6] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <Sparkles className="w-7 h-7 text-white" />
+                            </div>
+                            <h4 className="text-xl font-bold mb-2 text-white">The Generator</h4>
+                            <p className="text-white/60">Crea música desde cero con IA avanzada</p>
+                            <span className="text-[#40FDAE] group-hover:text-[#15A4A2] text-sm mt-4 underline-offset-4 group-hover:underline inline-block">Explorar →</span>
+                        </a>
+                        <a href="/ghost-studio" className="block rounded-xl border border-white/10 bg-[#1C232E] hover:border-[#B858FE]/50 transition-all group cursor-pointer p-6">
+                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#15A4A2] to-[#40FDAE] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <Wand2 className="w-7 h-7 text-white" />
+                            </div>
+                            <h4 className="text-xl font-bold mb-2 text-white">Ghost Studio</h4>
+                            <p className="text-white/60">Edición profesional y mezcla de stems</p>
+                            <span className="text-[#40FDAE] group-hover:text-[#15A4A2] text-sm mt-4 underline-offset-4 group-hover:underline inline-block">Explorar →</span>
+                        </a>
+                        <a href="/nova-post-pilot" className="block rounded-xl border border-white/10 bg-[#1C232E] hover:border-[#B858FE]/50 transition-all group cursor-pointer p-6">
+                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#047AF6] to-[#15A4A2] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <ImageIcon className="w-7 h-7 text-white" />
+                            </div>
+                            <h4 className="text-xl font-bold mb-2 text-white">Nova Post Pilot</h4>
+                            <p className="text-white/60">Automatiza tu presencia en redes sociales</p>
+                            <span className="text-[#40FDAE] group-hover:text-[#15A4A2] text-sm mt-4 underline-offset-4 group-hover:underline inline-block">Explorar →</span>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            {/* Pricing Section */}
+            <section id="pricing" className="py-20 px-6 bg-gradient-to-b from-[#122024]/30 to-transparent">
+                <div className="max-w-7xl mx-auto">
+                    <div className="text-center mb-16">
+                        <h3 className="text-4xl font-bold mb-4">Elige tu plan</h3>
+                        <p className="text-white/60 text-lg">Desbloquea todo el potencial de la creación musical</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {/* Free Tier */}
+                        <div className="rounded-2xl border border-white/10 bg-[#1C232E] p-6 hover:border-white/20 transition-all">
+                            <div className="mb-6">
+                                <h4 className="text-xl font-bold mb-2">Free</h4>
+                                <div className="flex items-baseline gap-2 mb-4">
+                                    <span className="text-4xl font-bold">$0</span>
+                                    <span className="text-white/50 text-sm">/mes</span>
+                                </div>
+                                <p className="text-white/60 text-sm">Para comenzar tu viaje musical</p>
+                            </div>
+                            <ul className="space-y-3 mb-8">
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#40FDAE]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#40FDAE] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">5 generaciones/mes</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#40FDAE]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#40FDAE] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">Calidad estándar</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#40FDAE]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#40FDAE] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">Uso personal</span>
+                                </li>
+                            </ul>
+                            <button className="w-full py-3 px-4 rounded-xl border border-white/20 hover:bg-white/5 transition-colors text-white text-sm">
+                                Comenzar gratis
+                            </button>
+                        </div>
+
+                        {/* Pro Tier */}
+                        <div className="rounded-2xl border border-white/10 bg-[#1C232E] p-6 hover:border-white/20 transition-all">
+                            <div className="mb-6">
+                                <h4 className="text-xl font-bold mb-2">Pro</h4>
+                                <div className="flex items-baseline gap-2 mb-4">
+                                    <span className="text-4xl font-bold">$29</span>
+                                    <span className="text-white/50 text-sm">/mes</span>
+                                </div>
+                                <p className="text-white/60 text-sm">Para creadores activos</p>
+                            </div>
+                            <ul className="space-y-3 mb-8">
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#15A4A2]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#15A4A2] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">200 generaciones/mes</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#15A4A2]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#15A4A2] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">Calidad alta (256kbps)</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#15A4A2]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#15A4A2] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">Uso comercial</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#15A4A2]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#15A4A2] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">Soporte prioritario</span>
+                                </li>
+                            </ul>
+                            <button className="w-full py-3 px-4 rounded-xl border border-[#15A4A2] hover:bg-[#15A4A2]/10 transition-colors text-white text-sm">
+                                Comenzar ahora
+                            </button>
+                        </div>
+
+                        {/* Premium Tier - Featured */}
+                        <div className="rounded-2xl border-2 border-[#B858FE] bg-[#1C232E] p-6 relative overflow-hidden transform lg:scale-105 shadow-lg shadow-[#B858FE]/20">
+                            <div className="absolute top-0 right-0 bg-gradient-to-r from-[#B858FE] to-[#047AF6] text-white text-xs font-bold px-3 py-1 rounded-bl-xl">
+                                POPULAR
+                            </div>
+                            <div className="mb-6 mt-4">
+                                <h4 className="text-xl font-bold mb-2">Premium</h4>
+                                <div className="flex items-baseline gap-2 mb-4">
+                                    <span className="text-4xl font-bold bg-gradient-to-r from-[#B858FE] to-[#047AF6] bg-clip-text text-transparent">$69</span>
+                                    <span className="text-white/50 text-sm">/mes</span>
+                                </div>
+                                <p className="text-white/60 text-sm">Para profesionales</p>
+                            </div>
+                            <ul className="space-y-3 mb-8">
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#B858FE]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#B858FE] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">500 generaciones/mes</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#B858FE]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#B858FE] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">Calidad premium (320kbps)</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#B858FE]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#B858FE] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">Descarga de stems</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#B858FE]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#B858FE] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">Acceso anticipado</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#B858FE]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#B858FE] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">API básica incluida</span>
+                                </li>
+                            </ul>
+                            <button className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#B858FE] to-[#047AF6] hover:shadow-[0_0_20px_rgba(184,88,254,0.4)] transition-all text-white font-semibold text-sm">
+                                Comenzar ahora
+                            </button>
+                        </div>
+
+                        {/* Enterprise Tier */}
+                        <div className="rounded-2xl border border-white/10 bg-[#1C232E] p-6 hover:border-white/20 transition-all">
+                            <div className="mb-6">
+                                <h4 className="text-xl font-bold mb-2">Enterprise</h4>
+                                <div className="flex items-baseline gap-2 mb-4">
+                                    <span className="text-3xl font-bold">Contacto</span>
+                                </div>
+                                <p className="text-white/60 text-sm">Soluciones a medida</p>
+                            </div>
+                            <ul className="space-y-3 mb-8">
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#047AF6]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#047AF6] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">Ilimitado</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#047AF6]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#047AF6] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">API dedicada</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#047AF6]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#047AF6] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">Soporte 24/7</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#047AF6]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#047AF6] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">Modelos custom</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-[#047AF6]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-[#047AF6] text-xs">✓</span>
+                                    </div>
+                                    <span className="text-white/80 text-sm">SLA garantizado</span>
+                                </li>
+                            </ul>
+                            <button className="w-full py-3 px-4 rounded-xl border border-[#047AF6] hover:bg-[#047AF6]/10 transition-colors text-white text-sm">
+                                Contactar ventas
+                            </button>
+                        </div>
+                    </div>
+
+                    <p className="text-center text-white/40 text-sm mt-12">
+                        Todos los planes incluyen acceso a nuevas funcionalidades y actualizaciones continuas
+                    </p>
+                </div>
+            </section>
+
+
+            {/* Footer */}
+            <footer className="py-12 px-6 border-t border-white/10">
+                <div className="max-w-7xl mx-auto text-center">
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                        <Logo size={40} className="opacity-80" />
+                        <span className="text-xl font-bold">Son1kvers<span className="text-[#B858FE]">3</span></span>
+                    </div>
+                    <p className="text-white/40 italic mb-6">lo imperfecto también es sagrado</p>
+                    <p className="text-sm text-white/30">© 2025 Son1kvers3. Todos los derechos reservados.</p>
+                </div>
+            </footer>
+
+            <Toaster position="bottom-center" toastOptions={{
+                style: {
+                    background: '#1C232E',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                },
+            }} />
+
+            <audio
+                ref={audioRef}
+                src={trackUrl || undefined}
+                onTimeUpdate={handleTimeUpdate}
+                onEnded={handleEnded}
+                onLoadedMetadata={handleTimeUpdate}
+            />
+        </div>
+    );
+};

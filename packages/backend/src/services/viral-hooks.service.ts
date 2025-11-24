@@ -16,10 +16,11 @@ export class ViralHooksService {
      */
     async generateWeeklyHooks(userId: string, platform: string): Promise<ViralHook[]> {
         // 1. Get User Profile
-        const profile = await profileAnalyzer.analyzeProfile(userId);
+        // TODO: Fetch real user posts
+        const profile = await profileAnalyzer.analyzeUserProfile([]);
 
         // 2. Get Trending Topics
-        const trends = await trendingService.getTrendingTopics(platform);
+        const trends = await trendingService.getTrends(platform);
         const relevantTrends = await trendingService.findRelevantTrends(
             profile.topTopics.join(', '),
             platform

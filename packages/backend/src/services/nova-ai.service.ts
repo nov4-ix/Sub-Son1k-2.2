@@ -324,7 +324,7 @@ Return ONLY the post content and hashtags, no explanations or meta-commentary.`;
     } {
         const errors: string[] = [];
         const warnings: string[] = [];
-        const { platform, content: text } = content;
+        const { metadata: { platform }, content: text } = content;
 
         // Platform-specific validation
         switch (platform.toLowerCase()) {

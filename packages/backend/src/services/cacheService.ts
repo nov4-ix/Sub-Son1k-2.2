@@ -10,12 +10,19 @@ export class CacheService {
   private configs: Map<string, CacheConfig> = new Map()
 
   constructor() {
-    this.redis = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-      password: process.env.REDIS_PASSWORD,
-      maxRetriesPerRequest: 3,
-    })
+    const redisUrl = process.env.REDIS_URL
+    if (redisUrl) {
+      this.redis = new Redis(redisUrl, {
+        maxRetriesPerRequest: 3,
+      })
+    } else {
+      this.redis = new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        password: process.env.REDIS_PASSWORD,
+        maxRetriesPerRequest: 3,
+      })
+    }
 
     // Define cache configurations
     this.configs.set('neural_tokens', { ttl: 300, prefix: 'cache:neural_tokens' }) // 5 minutes

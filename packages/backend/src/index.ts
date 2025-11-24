@@ -169,8 +169,8 @@ async function registerPlugins() {
   await fastify.register(rateLimit, {
     max: (req: any) => {
       // Dynamic rate limiting based on user tier
-      if (req.user?.tier === 'ENTERPRISE') return 1000;
-      if (req.user?.tier === 'PREMIUM') return 100;
+      if (req.user?.tier === 'COMMANDER') return 1000;
+      if (req.user?.tier === 'VANGUARD') return 100;
       return 10;
     },
     timeWindow: '1 minute',
@@ -317,7 +317,7 @@ async function registerRoutes() {
   });
 
   // Analytics routes
-  await fastify.register(analyticsRoutes, {
+  await fastify.register(analyticsRoutes(analyticsService), {
     prefix: '/api/analytics'
   });
 

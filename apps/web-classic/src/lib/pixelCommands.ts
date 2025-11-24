@@ -147,6 +147,20 @@ Estos trends son relevantes para tu contenido habitual.`;
         examples: ['/improve-prompt upbeat electronic dance']
     },
 
+    generate: {
+        name: '/generate',
+        description: 'Genera música directamente con un prompt',
+        category: 'generator',
+        handler: async (args) => {
+            const prompt = args.join(' ');
+            if (!prompt) {
+                return 'Por favor describe la música: `/generate [descripción]`';
+            }
+            return `GENERATE_MUSIC:${prompt}`; // Special flag handled by UI
+        },
+        examples: ['/generate epic orchestral soundtrack', '/generate lofi hip hop beat']
+    },
+
     'analyze-generation': {
         name: '/analyze-generation',
         description: 'Explica el resultado de una generación',

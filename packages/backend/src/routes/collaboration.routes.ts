@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { CollaborationService } from '../services/collaboration.service';
-import { authenticateRequest, requireTier, UserTier } from '../middleware/auth.middleware';
+import { authenticateRequest, requireTier } from '../middleware/auth.middleware';
+import { UserTier } from '../constants/tiers';
 
 export async function collaborationRoutes(
     fastify: FastifyInstance,
@@ -8,7 +9,7 @@ export async function collaborationRoutes(
 ) {
     // Create new room (PREMIUM required)
     fastify.post('/api/rooms', {
-        preHandler: [authenticateRequest, requireTier(UserTier.PREMIUM)]
+        preHandler: [authenticateRequest, requireTier(UserTier.VANGUARD)]
     }, async (request, reply) => {
         const { name } = request.body as { name?: string };
         const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -18,7 +19,7 @@ export async function collaborationRoutes(
 
     // Get room info (PREMIUM required)
     fastify.get('/api/rooms/:roomId', {
-        preHandler: [authenticateRequest, requireTier(UserTier.PREMIUM)]
+        preHandler: [authenticateRequest, requireTier(UserTier.VANGUARD)]
     }, async (request, reply) => {
         const { roomId } = request.params as { roomId: string };
         const roomInfo = await collabService.getRoomInfo(roomId);
@@ -32,7 +33,7 @@ export async function collaborationRoutes(
 
     // List active rooms (PREMIUM required)
     fastify.get('/api/rooms', {
-        preHandler: [authenticateRequest, requireTier(UserTier.PREMIUM)]
+        preHandler: [authenticateRequest, requireTier(UserTier.VANGUARD)]
     }, async (request, reply) => {
         const rooms = await collabService.listRooms();
         return reply.send({ rooms });
@@ -40,7 +41,7 @@ export async function collaborationRoutes(
 
     // Join room (PREMIUM required)
     fastify.post('/api/rooms/:roomId/join', {
-        preHandler: [authenticateRequest, requireTier(UserTier.PREMIUM)]
+        preHandler: [authenticateRequest, requireTier(UserTier.VANGUARD)]
     }, async (request, reply) => {
         const { roomId } = request.params as { roomId: string };
         const { userId, name } = request.body as { userId: string; name: string };

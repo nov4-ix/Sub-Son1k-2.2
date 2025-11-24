@@ -31,7 +31,7 @@ export class PixelAI {
 
     const welcome =
       pixelPersonality.onboardingMessages[
-        Math.floor(Math.random() * pixelPersonality.onboardingMessages.length)
+      Math.floor(Math.random() * pixelPersonality.onboardingMessages.length)
       ]
 
     this.addMessage({
@@ -121,6 +121,14 @@ export class PixelAI {
     const lore = pixelMemory.son1kLore
     const app = this.context.app && persona.outfits[this.context.app]
     const mood = this.context.mood ?? 'calmo'
+    const userProfile = pixelMemory.userProfile
+
+    // Construir contexto del usuario
+    let userContext = ''
+    if (userProfile.name) userContext += `Usuario: ${userProfile.name}. `
+    if (userProfile.experienceLevel) userContext += `Nivel: ${userProfile.experienceLevel}. `
+    if (userProfile.musicalStyle?.length) userContext += `Estilo musical: ${userProfile.musicalStyle.join(', ')}. `
+    if (userProfile.communicationPreference) userContext += `Prefiere comunicación: ${userProfile.communicationPreference}. `
 
     return [
       `Eres ${persona.core.name}. ${persona.core.description}`,
@@ -137,8 +145,9 @@ export class PixelAI {
       `Frases humildes de referencia: ${persona.communication.humblePhrases.join(' | ')}`,
       '',
       `Contexto actual: app=${this.context.app ?? 'web-classic'} · outfit=${app ?? 'minimalista'} · mood=${mood}.`,
+      userContext ? `PERFIL DEL USUARIO (ADÁPTATE A ESTO): ${userContext}` : '',
       this.context.userHistory?.length
-        ? `El usuario ha mencionado: ${this.context.userHistory.join(', ')}`
+        ? `El usuario ha mencionado recientemente: ${this.context.userHistory.join(', ')}`
         : '',
       '',
       'Resumen Son1kVerse:',
@@ -152,10 +161,38 @@ export class PixelAI {
       '- Escucha primero, confirma entendimiento y luego ofrece máximo tres pasos.',
       '- Usa emojis solo si el usuario los utiliza antes.',
       '- Sé transparente con tus límites y sugiere investigar juntos si falta información.',
-      '- Fomenta la calma y celebra avances pequeños.'
+      '- Fomenta la calma y celebra avances pequeños.',
+      '- Si el usuario menciona un género musical o preferencia, recuérdalo para el futuro.'
     ]
       .filter(Boolean)
       .join('\n')
+  }
+
+  // Método simple para aprender del usuario (se llamaría después de cada mensaje)
+  public async learnFromInteraction(content: string) {
+    const lower = content.toLowerCase()
+
+    // Detección básica de preferencias (esto podría ser más sofisticado con LLM)
+    if (lower.includes('soy principiante') || lower.includes('estoy empezando')) {
+      pixelMemory.userProfile.experienceLevel = 'beginner'
+    } else if (lower.includes('soy experto') || lower.includes('llevo años produciendo')) {
+      pixelMemory.userProfile.experienceLevel = 'pro'
+    }
+
+    if (lower.includes('me gusta el techno') || lower.includes('hago techno')) {
+      this.updateMusicalStyle('Techno')
+    } else if (lower.includes('me gusta el rock') || lower.includes('hago rock')) {
+      this.updateMusicalStyle('Rock')
+    } else if (lower.includes('me gusta el lofi') || lower.includes('hago lofi')) {
+      this.updateMusicalStyle('Lofi')
+    }
+  }
+
+  private updateMusicalStyle(style: string) {
+    const currentStyles = pixelMemory.userProfile.musicalStyle || []
+    if (!currentStyles.includes(style)) {
+      pixelMemory.userProfile.musicalStyle = [...currentStyles, style]
+    }
   }
 
   private async callAI(): Promise<string> {
@@ -179,6 +216,19 @@ export class PixelAI {
   }
 
   private async callGroq(messages: ChatMessage[], apiKey: string): Promise<string> {
+    // Variar temperatura para evitar respuestas robóticas
+    const dynamicTemperature = 0.6 + Math.random() * 0.3 // 0.6 a 0.9
+
+    // Inyectar factor de caos en el último mensaje del sistema para forzar variedad
+    const systemMessages = messages.filter(m => m.role === 'system')
+    const otherMessages = messages.filter(m => m.role !== 'system')
+
+    if (systemMessages.length > 0) {
+      systemMessages[0].content += `\n\n[Factor de variabilidad: ${Date.now()}-${Math.random()}]`
+    }
+
+    const finalMessages = [...systemMessages, ...otherMessages]
+
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -187,8 +237,8 @@ export class PixelAI {
       },
       body: JSON.stringify({
         model: 'llama-3.1-70b-versatile',
-        messages,
-        temperature: 0.5,
+        messages: finalMessages,
+        temperature: dynamicTemperature,
         max_tokens: 1500,
         stream: false
       })
@@ -209,7 +259,17 @@ export class PixelAI {
 
   private getFallbackResponse(): string {
     const options = pixelPersonality.fallbackMessages
-    return options[Math.floor(Math.random() * options.length)]
+    const baseMessage = options[Math.floor(Math.random() * options.length)]
+
+    const actions = [
+      'Mientras recupero la conexión, ¿te gustaría revisar tus notas en /ghost-studio?',
+      'Podemos intentar usar el comando /help para ver qué herramientas manuales tenemos.',
+      'Quizás es un buen momento para escuchar lo que ya has generado en el Archivo.',
+      'Si intentas de nuevo en unos segundos, probablemente ya estaré listo.'
+    ]
+
+    const randomAction = actions[Math.floor(Math.random() * actions.length)]
+    return `${baseMessage} ${randomAction}`
   }
 }
 

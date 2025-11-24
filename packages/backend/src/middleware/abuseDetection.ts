@@ -34,12 +34,19 @@ export class AbuseDetectionService {
   private readonly MAX_ACCOUNTS_PER_DEVICE = 3;
 
   constructor() {
-    this.redis = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-      password: process.env.REDIS_PASSWORD,
-      maxRetriesPerRequest: 3,
-    });
+    const redisUrl = process.env.REDIS_URL;
+    if (redisUrl) {
+      this.redis = new Redis(redisUrl, {
+        maxRetriesPerRequest: 3,
+      });
+    } else {
+      this.redis = new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        password: process.env.REDIS_PASSWORD,
+        maxRetriesPerRequest: 3,
+      });
+    }
 
     // Cleanup expired blocks every 5 minutes
     setInterval(() => this.cleanupExpiredBlocks(), 5 * 60 * 1000);
@@ -248,7 +255,7 @@ export class AbuseDetectionService {
     userId: string
   ): Promise<{ detected: boolean; count: number }> {
     const key = `device:accounts:${deviceFingerprint}`;
-    
+
     // Add user to device's account list
     await this.redis.sadd(key, userId);
     await this.redis.expire(key, 86400); // 24 hours TTL
@@ -339,7 +346,7 @@ export class AbuseDetectionService {
     patternsLast24h: number;
   }> {
     const blockedCount = this.blockedEntities.size;
-    
+
     // Count patterns in last 24h
     const patternKeys = await this.redis.keys('abuse:pattern:*');
     const patternsLast24h = patternKeys.length;

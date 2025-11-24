@@ -1,3 +1,53 @@
+// Tipos para el perfil del usuario
+export interface UserProfile {
+  name?: string
+  musicalStyle?: string[]
+  experienceLevel?: 'beginner' | 'intermediate' | 'pro'
+  favoriteGenres?: string[]
+  communicationPreference?: 'concise' | 'detailed' | 'technical'
+}
+
+// Estructura de memoria persistente
+interface PersistentMemory {
+  memories: Array<{
+    id: string
+    type: 'story' | 'decision' | 'technical' | 'personal' | 'advice'
+    title: string
+    content: string
+    timestamp: string // Date as string for JSON
+    tags: string[]
+  }>
+  userProfile: UserProfile
+}
+
+const STORAGE_KEY = 'son1k_pixel_memory_v1'
+
+// Cargar memoria inicial
+const loadMemory = (): PersistentMemory => {
+  if (typeof window === 'undefined') return { memories: [], userProfile: {} }
+
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    return saved ? JSON.parse(saved) : { memories: [], userProfile: {} }
+  } catch (e) {
+    console.error('Error loading Pixel memory:', e)
+    return { memories: [], userProfile: {} }
+  }
+}
+
+// Guardar memoria
+const saveMemory = (data: PersistentMemory) => {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  } catch (e) {
+    console.error('Error saving Pixel memory:', e)
+  }
+}
+
+// Estado en memoria (sincronizado con localStorage)
+let currentMemory = loadMemory()
+
 export const pixelMemory = {
   son1kLore: {
     origin: `Son1kVerse nació como un experimento de amistad entre código y música. Pixel aprendió
@@ -46,14 +96,17 @@ export const pixelMemory = {
     recuerda decisiones técnicas y ofrece contexto para que el equipo avance con calma.`
   },
 
-  memories: [] as Array<{
-    id: string
-    type: 'story' | 'decision' | 'technical' | 'personal' | 'advice'
-    title: string
-    content: string
-    timestamp: Date
-    tags: string[]
-  }>
+  // Getters
+  get memories() {
+    return currentMemory.memories.map(m => ({
+      ...m,
+      timestamp: new Date(m.timestamp)
+    }))
+  },
+
+  get userProfile() {
+    return currentMemory.userProfile
+  }
 }
 
 export function addMemory(
@@ -62,14 +115,22 @@ export function addMemory(
   content: string,
   tags: string[]
 ) {
-  pixelMemory.memories.push({
+  const newMemory = {
     id: `memory-${Date.now()}`,
     type,
     title,
     content,
-    timestamp: new Date(),
+    timestamp: new Date().toISOString(),
     tags
-  })
+  }
+
+  currentMemory.memories.push(newMemory)
+  saveMemory(currentMemory)
+}
+
+export function updateUserProfile(update: Partial<UserProfile>) {
+  currentMemory.userProfile = { ...currentMemory.userProfile, ...update }
+  saveMemory(currentMemory)
 }
 
 export function searchMemories(query: string) {

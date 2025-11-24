@@ -2,6 +2,8 @@
  * ErrorBoundary Component
  * Catches React errors and displays user-friendly error messages
  */
+'use client';
+
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {

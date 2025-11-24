@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, X, Sparkles, Minimize2, Maximize2, Command } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { pixelAI } from '../lib/pixelAI'
 import { pixelPersonality } from '../lib/pixelPersonality'
 import { parseCommand, executeCommand } from '../lib/pixelCommands'
@@ -33,6 +35,7 @@ export function PixelChatAdvanced({
   const [isMinimized, setIsMinimized] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     checkConnection()
@@ -105,8 +108,35 @@ export function PixelChatAdvanced({
     setInput('')
     setIsLoading(true)
 
+    // Aprender del usuario
+    pixelAI.learnFromInteraction(userMessage.content)
+
     try {
-      const response = await pixelAI.sendMessage(userMessage.content, { app: currentApp })
+      let response: string
+
+      // Verificar si es comando
+      const cmd = parseCommand(userMessage.content)
+      if (cmd.isCommand && cmd.command) {
+        response = await executeCommand(cmd.command, cmd.args || [], { app: currentApp })
+      } else {
+        response = await pixelAI.sendMessage(userMessage.content, { app: currentApp })
+      }
+
+      // Manejar flags especiales
+      if (response.startsWith('GENERATE_MUSIC:')) {
+        const prompt = response.replace('GENERATE_MUSIC:', '').trim()
+        toast.success(`🎵 Iniciando generador con: ${prompt}`)
+        navigate('/generator')
+        // Aquí idealmente pasaríamos el prompt al estado global o query param
+        response = `¡Entendido! Te llevo al generador para crear música sobre: "${prompt}".`
+      } else if (response.startsWith('CHANGE_MOOD:')) {
+        const mood = response.replace('CHANGE_MOOD:', '').trim()
+        response = `Mood cambiado a: ${mood}. Me adaptaré a esta energía.`
+      } else if (response === 'CLEAR_HISTORY') {
+        setMessages([])
+        pixelAI.clearHistory()
+        return
+      }
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -145,17 +175,17 @@ export function PixelChatAdvanced({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.95 }}
       className={`fixed ${isMinimized ? 'bottom-4 right-4 w-80 h-16' : 'bottom-4 right-4 w-96 h-[600px]'
-        } bg-carbon/95 backdrop-blur-xl border border-primary/30 rounded-2xl shadow-[0_0_30px_rgba(0,255,231,0.3)] transition-all duration-300 z-50`}
+        } bg-[#171925]/95 backdrop-blur-xl border border-[#40FDAE]/30 rounded-2xl shadow-[0_0_30px_rgba(64,253,174,0.3)] transition-all duration-300 z-50`}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-white/10">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-10 h-10 bg-gradient-to-r from-primary to-magenta rounded-xl flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-carbon" />
+            <div className="w-10 h-10 bg-gradient-to-r from-[#40FDAE] to-[#B858FE] rounded-xl flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-[#171925]" />
             </div>
             <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'
-              } border-2 border-carbon`} />
+              } border-2 border-[#171925]`} />
           </div>
           <div>
             <h3 className="text-white font-bold">Pixel</h3>
@@ -195,8 +225,8 @@ export function PixelChatAdvanced({
                 >
                   <div
                     className={`max-w-[80%] rounded-2xl p-3 ${message.role === 'user'
-                        ? 'bg-primary/20 text-white border border-primary/30'
-                        : 'bg-white/5 text-white/90 border border-white/10'
+                      ? 'bg-[#40FDAE]/20 text-white border border-[#40FDAE]/30'
+                      : 'bg-white/5 text-white/90 border border-white/10'
                       }`}
                   >
                     <p className="text-sm leading-relaxed">{message.content}</p>
@@ -215,9 +245,9 @@ export function PixelChatAdvanced({
               >
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
                   <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <div className="w-2 h-2 bg-[#40FDAE] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-[#40FDAE] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-[#40FDAE] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                 </div>
               </motion.div>
@@ -235,12 +265,12 @@ export function PixelChatAdvanced({
                 onKeyPress={handleKeyPress}
                 placeholder="Pregúntale a Pixel..."
                 disabled={!isConnected || isLoading}
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:border-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:border-[#40FDAE]/50 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || !isConnected || isLoading}
-                className="bg-gradient-to-r from-primary to-magenta text-carbon p-2 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-gradient-to-r from-[#40FDAE] to-[#B858FE] text-[#171925] p-2 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-5 h-5" />
               </button>

@@ -7,8 +7,8 @@ import { FastifyInstance } from 'fastify';
 import { AnalyticsService } from '../services/analyticsService';
 import { authMiddleware, adminMiddleware } from '../middleware/auth';
 
-export function analyticsRoutes(fastify: FastifyInstance, analyticsService: AnalyticsService) {
-  return async function() {
+export function analyticsRoutes(analyticsService: AnalyticsService) {
+  return async function (fastify: FastifyInstance) {
     // Get user analytics
     fastify.get('/user', {
       preHandler: [authMiddleware]

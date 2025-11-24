@@ -1,5 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { PixelMessage } from '../../../apps/web-classic/src/lib/pixelAI';
+export interface PixelMessage {
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    timestamp: number;
+}
 
 export interface PixelUserProfile {
     userId: string;

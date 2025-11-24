@@ -84,6 +84,13 @@ export class TrendingService {
     }
 
     /**
+     * Alias for getTrends
+     */
+    async getTrendingTopics(platform: string): Promise<TrendingTopic[]> {
+        return this.getTrends(platform);
+    }
+
+    /**
      * Twitter Trends (via API o scraping)
      */
     private async getTwitterTrends(): Promise<TrendingTopic[]> {

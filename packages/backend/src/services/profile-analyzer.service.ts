@@ -475,3 +475,11 @@ export class AlgorithmOptimizer {
         };
     }
 }
+
+// Export singleton instance
+
+
+
+
+// Export singleton instance
+export const profileAnalyzer = new ProfileAnalyzer();

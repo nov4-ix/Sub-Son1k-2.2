@@ -2,10 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useDAWStore } from '../../store/dawStore';
 import { audioEngine } from '../../lib/AudioEngine';
 import { Play, Pause, Square, Plus, Mic, Volume2, Scissors, Magnet } from 'lucide-react';
-import { TrackHeader } from './TrackHeader';
-import { Timeline } from './Timeline';
-import { TrackLane } from './TrackLane';
-import { PluginRack } from './PluginRack';
+import { TrackHeader } from './daw/TrackHeader';
+import { Timeline } from './daw/Timeline';
+import { TrackLane } from './daw/TrackLane';
+import { PluginRack } from './daw/PluginRack';
 
 export default function DAWInterface() {
     const {

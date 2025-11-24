@@ -130,6 +130,8 @@ function validateEnv() {
         SUNO_API_KEY: process.env.SUNO_API_KEY,
         GENERATION_API_URL: process.env.GENERATION_API_URL,
         GENERATION_POLLING_URL: process.env.GENERATION_POLLING_URL,
+        NEURAL_ENGINE_API_URL: process.env.NEURAL_ENGINE_API_URL || process.env.SUNO_API_URL,
+        NEURAL_ENGINE_POLLING_URL: process.env.NEURAL_ENGINE_POLLING_URL || process.env.SUNO_POLLING_URL,
         FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
         BACKEND_SECRET: process.env.BACKEND_SECRET || 'dev-backend-secret-min-32-chars-for-development',
         GENERATION_CONCURRENCY: process.env.GENERATION_CONCURRENCY,
@@ -148,7 +150,7 @@ function validateEnv() {
         PORT: process.env.PORT || '3001',
         LOG_LEVEL: (process.env.LOG_LEVEL as 'error' | 'warn' | 'info' | 'debug') || 'info',
         HOST: process.env.HOST,
-      } as z.infer<typeof envSchema>;
+      } as z.infer<typeof envSchema> & { NEURAL_ENGINE_API_URL?: string; NEURAL_ENGINE_POLLING_URL?: string };
     }
     
     return result.data;

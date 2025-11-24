@@ -2,6 +2,8 @@
  * MusicList component with pagination support
  * Uses useUserMusic hook for data fetching
  */
+'use client';
+
 import React, { useCallback } from 'react';
 import { Loader2, ChevronDown } from 'lucide-react';
 import { useUserMusic } from '@super-son1k/shared-hooks';

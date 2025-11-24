@@ -2,6 +2,8 @@
  * Optimized TrackItem component with React.memo
  * Prevents unnecessary re-renders when parent updates
  */
+'use client';
+
 import React from 'react';
 import { Play, Download, Upload } from 'lucide-react';
 import type { MusicTrack } from '@super-son1k/shared-types';

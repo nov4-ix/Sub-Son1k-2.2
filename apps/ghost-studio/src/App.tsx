@@ -254,7 +254,7 @@ export function GhostStudio() {
                     >
                       <Download size={18} />
                       Descargar
-                    </span>
+                    </button>
                   </div>
                   {uploadedFile && (
                     <div className="flex justify-between">
@@ -273,12 +273,12 @@ export function GhostStudio() {
                     </div>
                   )}
                 </div>
-        </div>
+              )}
+            </div>
           </div>
         </div>
+      </main>
     </div>
-      </main >
-    </div >
   );
 }
 

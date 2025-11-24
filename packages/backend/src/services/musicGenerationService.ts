@@ -129,7 +129,7 @@ export class MusicGenerationService {
 
       // Polling endpoint para verificar estado
       // ✅ VALIDAR VARIABLE DE ENTORNO
-      const pollingUrl = env.GENERATION_POLLING_URL || env.NEURAL_ENGINE_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
+      const pollingUrl = (env as any).GENERATION_POLLING_URL || (env as any).NEURAL_ENGINE_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
 
       const response = await axios.get(`${pollingUrl}/get_mj_status/${generationTaskId}`, {
         timeout: 10000,
@@ -210,7 +210,7 @@ export class MusicGenerationService {
       }
 
       // Polling endpoint para verificar estado de cover
-      const pollingUrl = env.GENERATION_POLLING_URL || env.NEURAL_ENGINE_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
+      const pollingUrl = (env as any).GENERATION_POLLING_URL || (env as any).NEURAL_ENGINE_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
 
       const response = await axios.get(`${pollingUrl}/get_mj_status/${generationTaskId}`, {
         timeout: 10000,
@@ -280,7 +280,7 @@ export class MusicGenerationService {
    */
   private createAxiosInstance(token: string): AxiosInstance {
     // ✅ VALIDAR VARIABLE DE ENTORNO (prevenir crashes)
-    const baseURL = env.GENERATION_API_URL || env.NEURAL_ENGINE_API_URL || 'https://ai.imgkits.com/suno';
+    const baseURL = (env as any).GENERATION_API_URL || (env as any).NEURAL_ENGINE_API_URL || 'https://ai.imgkits.com/suno';
     return axios.create({
       baseURL,
       timeout: 30000,

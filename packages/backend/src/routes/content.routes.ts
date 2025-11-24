@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { authenticateRequest, requireTier, UserTier } from '../middleware/auth.middleware';
+import { authenticateRequest, requireTier } from '../middleware/auth.middleware';
+import { UserTier } from '../constants/tiers';
 import { novaAI } from '../services/nova-ai.service';
 import { ProfileAnalyzer, AlgorithmOptimizer } from '../services/profile-analyzer.service';
 import { trendingService } from '../services/trending.service';
@@ -115,7 +116,7 @@ export async function contentRoutes(fastify: FastifyInstance) {
 
     // Analyze user profile (PREMIUM+)
     fastify.post('/api/profile/analyze', {
-        preHandler: [authenticateRequest, requireTier(UserTier.PREMIUM)]
+        preHandler: [authenticateRequest, requireTier(UserTier.VANGUARD)]
     }, async (request, reply) => {
         const user = (request as any).user;
 

@@ -23,10 +23,15 @@ export default function GenerationHistory({ userId, onSelectTrack }: GenerationH
 
   const loadHistory = async () => {
     if (!userId) return;
-    
+
     setIsLoading(true);
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://son1kverse-backend.railway.app';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL;
+      if (!backendUrl) {
+        console.error('VITE_BACKEND_URL not configured');
+        toast.error('Backend URL not configured');
+        return;
+      }
       const response = await fetch(`${backendUrl}/api/generation/history`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('supabase_token') || ''}`
@@ -63,14 +68,18 @@ export default function GenerationHistory({ userId, onSelectTrack }: GenerationH
 
   const handleDelete = async (trackId: string) => {
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://son1kverse-backend.railway.app';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL;
+      if (!backendUrl) {
+        toast.error('Backend URL not configured');
+        return;
+      }
       await fetch(`${backendUrl}/api/generation/${trackId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('supabase_token') || ''}`
         }
       });
-      
+
       setTracks(tracks.filter(t => t.id !== trackId));
       toast.success('Track deleted');
     } catch (error) {
@@ -123,12 +132,11 @@ export default function GenerationHistory({ userId, onSelectTrack }: GenerationH
                       <Clock size={12} />
                       {new Date(track.createdAt || Date.now()).toLocaleDateString()}
                     </span>
-                    <span className={`px-2 py-1 rounded ${
-                      (track.status?.toUpperCase() === 'COMPLETED') ? 'bg-green-500/20 text-green-400' :
-                      (track.status?.toUpperCase() === 'PROCESSING' || track.status?.toUpperCase() === 'PENDING') ? 'bg-blue-500/20 text-blue-400' :
-                      (track.status?.toUpperCase() === 'FAILED') ? 'bg-red-500/20 text-red-400' :
-                      'bg-gray-500/20 text-gray-400'
-                    }`}>
+                    <span className={`px-2 py-1 rounded ${(track.status?.toUpperCase() === 'COMPLETED') ? 'bg-green-500/20 text-green-400' :
+                        (track.status?.toUpperCase() === 'PROCESSING' || track.status?.toUpperCase() === 'PENDING') ? 'bg-blue-500/20 text-blue-400' :
+                          (track.status?.toUpperCase() === 'FAILED') ? 'bg-red-500/20 text-red-400' :
+                            'bg-gray-500/20 text-gray-400'
+                      }`}>
                       {track.status?.toUpperCase() || 'PENDING'}
                     </span>
                   </div>

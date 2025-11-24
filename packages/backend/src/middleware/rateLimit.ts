@@ -4,12 +4,15 @@ import { AuthenticatedRequest } from './auth'
 import { generateDeviceFingerprint } from './security'
 
 // Redis client for rate limiting
-const redis = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-  maxRetriesPerRequest: 3,
-})
+const redisUrl = process.env.REDIS_URL
+const redis = redisUrl
+  ? new Redis(redisUrl, { maxRetriesPerRequest: 3 })
+  : new Redis({
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+    password: process.env.REDIS_PASSWORD,
+    maxRetriesPerRequest: 3,
+  })
 
 interface RateLimitConfig {
   maxRequests: number

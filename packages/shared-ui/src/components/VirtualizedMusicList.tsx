@@ -2,6 +2,8 @@
  * VirtualizedMusicList component
  * Uses virtual scrolling for large lists to improve performance
  */
+'use client';
+
 import React, { useMemo, useCallback } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import { useUserMusic } from '@super-son1k/shared-hooks';
