@@ -287,8 +287,8 @@ class TokenCaptureService {
 
       // Get URLs from storage or use defaults
       const result = await chrome.storage.local.get(['generatorUrl', 'backendUrl'])
-      const generatorUrl = result.generatorUrl || 'https://the-generator.son1kvers3.com'
-      const backendUrl = result.backendUrl || process.env.BACKEND_URL || 'https://son1kverse-backend.railway.app'
+      const generatorUrl = result.generatorUrl || 'https://web-classic.vercel.app'
+      const backendUrl = result.backendUrl || 'https://sub-son1k-2-2.fly.dev'
 
       if (process.env.NODE_ENV === 'development') {
         console.log(`📤 Sending token to pools...`)
