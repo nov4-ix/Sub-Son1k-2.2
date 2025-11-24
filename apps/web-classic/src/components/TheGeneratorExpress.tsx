@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Logo } from './Logo';
 import { Play, Sparkles, Wand2, Image as ImageIcon, MessageSquare, Users, SkipBack, SkipForward, Music, Pause, Volume2 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import { ExtensionInstallWizard } from './ExtensionInstallWizard';
 
 export const TheGeneratorExpress = () => {
     const [prompt, setPrompt] = useState('');
@@ -12,6 +13,7 @@ export const TheGeneratorExpress = () => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
+    const [showExtensionWizard, setShowExtensionWizard] = useState(false);
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -69,7 +71,15 @@ export const TheGeneratorExpress = () => {
 
         } catch (error: any) {
             console.error('Generation error:', error);
-            toast.error(error.message || 'Error al generar canción');
+
+            // Check if error is due to missing tokens
+            if (error.message?.includes('NO_TOKENS_AVAILABLE') || error.message?.includes('No available tokens')) {
+                setShowExtensionWizard(true);
+                toast.error('Se requiere instalar la extensión para generar música');
+            } else {
+                toast.error(error.message || 'Error al generar canción');
+            }
+
             setIsGenerating(false);
             setGenerationMessage('');
         }
@@ -672,6 +682,15 @@ export const TheGeneratorExpress = () => {
                 onTimeUpdate={handleTimeUpdate}
                 onEnded={handleEnded}
                 onLoadedMetadata={handleTimeUpdate}
+            />
+
+            {/* Extension Install Wizard */}
+            <ExtensionInstallWizard
+                isOpen={showExtensionWizard}
+                onClose={() => setShowExtensionWizard(false)}
+                onComplete={() => {
+                    toast.success('¡Extensión instalada! Ya puedes generar música.');
+                }}
             />
         </div>
     );
