@@ -15,8 +15,8 @@ export const generationRequestSchema = z.object({
   style: z.string()
     .optional()
     .default('pop')
-    .refine(val => ['pop', 'rock', 'jazz', 'classical', 'electronic', 'hip-hop', 'country', 'blues', 'reggae', 'folk'].includes(val || ''), {
-      message: 'Estilo no válido'
+    .refine(val => val && val.length >= 2 && val.length <= 200, {
+      message: 'Estilo debe tener entre 2 y 200 caracteres'
     }),
   duration: z.number()
     .int()
@@ -67,7 +67,7 @@ export const tokenAddSchema = z.object({
 // Helper function to validate request body
 export function validateRequest<T>(schema: z.ZodSchema<T>, data: unknown): T {
   const result = schema.safeParse(data);
-  
+
   if (!result.success) {
     const errors = result.error.issues.map(e => ({
       path: e.path.join('.'),
@@ -75,7 +75,7 @@ export function validateRequest<T>(schema: z.ZodSchema<T>, data: unknown): T {
     }));
     throw new ValidationError('Invalid input', errors);
   }
-  
+
   return result.data;
 }
 

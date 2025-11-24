@@ -121,11 +121,22 @@ async function registerPlugins() {
   await fastify.register(cors, {
     origin: (origin, cb) => {
       const allowedOrigins = process.env.FRONTEND_URL?.split(',') || ['http://localhost:3000'];
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-        cb(null, true);
-      } else {
-        cb(new Error('Not allowed'), false);
-      }
+
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return cb(null, true);
+
+      // Check against allowed list
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) return cb(null, true);
+
+      // Allow all Vercel deployments (preview and production)
+      if (origin.endsWith('.vercel.app')) return cb(null, true);
+
+      // Allow localhost for development
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) return cb(null, true);
+
+      // Log blocked origin for debugging
+      console.log(`Blocked CORS origin: ${origin}`);
+      cb(new Error('Not allowed'), false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
