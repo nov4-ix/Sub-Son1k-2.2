@@ -15,9 +15,9 @@ class TokenValidator {
     }
 
     try {
-      // Use provided API URL or default
-      const url = apiUrl || 'https://ai.imgkits.com/suno'
-      
+      // Use provided API URL or default to empty string (validation will fail gracefully)
+      const url = apiUrl || ''
+
       // Simple validation: check if token format is valid
       if (!token || typeof token !== 'string' || token.length < 20) {
         this.cacheResult(token, false)

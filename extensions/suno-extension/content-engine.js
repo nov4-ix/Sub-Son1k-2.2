@@ -7,7 +7,7 @@ class AITokenCapture {
 
   initializeCapture() {
     // Silent initialization - no console logs in production
-    if (process.env.NODE_ENV === 'development') {
+    if (DEV_MODE) {
       console.log('Son1kVerse Neural Engine initialized')
     }
 

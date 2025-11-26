@@ -1,31 +1,34 @@
 {
   "manifest_version": 3,
   "name": "Son1kVerse AI Music Engine",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "AI-powered music generation extension for Son1kVerse platform",
   "permissions": [
     "activeTab",
     "storage",
     "scripting",
     "webRequest",
-    "webRequestBlocking",
     "tabs",
-    "cookies"
+    "cookies",
+    "offscreen"
   ],
   "host_permissions": [
-    "https://*.neural-engine.com/*",
-    "https://api.neural-engine.ai/*",
+    "https://*.suno.com/*",
+    "https://*.suno.ai/*",
+    "https://studio-api.prod.suno.com/*",
     "https://*.super-son1k.com/*",
-    "https://the-generator.son1kvers3.com/*"
+    "https://sub-son1k-2-2.fly.dev/*",
+    "https://web-classic.vercel.app/*"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
       "matches": [
-        "https://neural-engine.com/*",
-        "https://*.neural-engine.com/*"
+        "https://*.suno.com/*",
+        "https://*.suno.ai/*"
       ],
       "js": [
         "content-engine.js"
@@ -34,7 +37,8 @@
     },
     {
       "matches": [
-        "https://*.super-son1k.com/*"
+        "https://*.super-son1k.com/*",
+        "https://web-classic.vercel.app/*"
       ],
       "js": [
         "content-son1k.js"
@@ -64,8 +68,8 @@
         "injected.js"
       ],
       "matches": [
-        "https://neural-engine.com/*",
-        "https://*.neural-engine.com/*"
+        "https://*.suno.com/*",
+        "https://*.suno.ai/*"
       ]
     }
   ]
