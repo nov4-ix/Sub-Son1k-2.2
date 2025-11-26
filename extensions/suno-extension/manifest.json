@@ -10,7 +10,8 @@
     "webRequest",
     "tabs",
     "cookies",
-    "offscreen"
+    "offscreen",
+    "alarms"
   ],
   "host_permissions": [
     "https://*.suno.com/*",
