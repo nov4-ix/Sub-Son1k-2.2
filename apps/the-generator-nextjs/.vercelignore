@@ -26,3 +26,4 @@ tsconfig.tsbuildinfo
 
 # NO excluir node_modules o scripts - son necesarios para el runtime
 # NO excluir app/api/** - los endpoints son críticos
+packages_temp/**/node_modules

@@ -13,11 +13,11 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
-    "@super-son1k/shared-hooks": "workspace:*",
-    "@super-son1k/shared-ui": "workspace:*",
-    "@super-son1k/shared-types": "workspace:*",
-    "@super-son1k/shared-services": "workspace:*",
-    "@super-son1k/shared-utils": "workspace:*",
+    "@super-son1k/shared-hooks": "file:../../packages/shared-hooks",
+    "@super-son1k/shared-ui": "file:../../packages/shared-ui",
+    "@super-son1k/shared-types": "file:../../packages/shared-types",
+    "@super-son1k/shared-services": "file:../../packages/shared-services",
+    "@super-son1k/shared-utils": "file:../../packages/shared-utils",
     "@supabase/storage-js": "^2.5.5",
     "@supabase/supabase-js": "^2.39.0",
     "@vercel/speed-insights": "^1.2.0",
