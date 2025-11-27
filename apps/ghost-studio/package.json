@@ -17,6 +17,7 @@
     "@super-son1k/shared-ui": "workspace:*",
     "@super-son1k/shared-types": "workspace:*",
     "@super-son1k/shared-services": "workspace:*",
+    "@super-son1k/shared-utils": "workspace:*",
     "@supabase/storage-js": "^2.5.5",
     "@supabase/supabase-js": "^2.39.0",
     "@vercel/speed-insights": "^1.2.0",

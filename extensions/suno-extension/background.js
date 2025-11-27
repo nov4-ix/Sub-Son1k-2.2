@@ -1,7 +1,6 @@
 // Background script for Super-Son1k Token Capture Extension
 
 // Development mode flag (set to false for production)
-// Development mode flag (set to false for production)
 const DEV_MODE = false;
 
 // GHOST PROTOCOL: Advanced Stealth Session Management

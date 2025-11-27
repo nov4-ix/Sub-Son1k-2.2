@@ -4,6 +4,7 @@ import { supabaseStorage } from '../lib/api/supabase-storage';
 import { translateToEnglish } from '../lib/translate';
 import type { CoverResult, GeneratorData } from '@super-son1k/shared-types';
 import { useCoverProgress } from './useCoverProgress';
+import { pollWithRetry } from '@super-son1k/shared-utils';
 
 export function useSunoCover() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -145,152 +146,58 @@ export function useSunoCover() {
   };
 
   const pollForResult = async (taskId: string) => {
-    const maxAttempts = 60; // 5 minutos máximo (60 attempts * 5 seconds)
-    const pollInterval = 5000; // 5 segundos
-    let attempts = 0;
+    try {
+      const result = await pollWithRetry(
+        async () => {
+          const { backendUrl: BACKEND_URL } = await import('../lib/config/env');
+          if (!BACKEND_URL) throw new Error('VITE_BACKEND_URL no configurada');
 
-    /**
-     * Fetch con retry automático para cada poll
-     */
-    const fetchWithRetry = async (url: string, options: RequestInit, maxRetries = 2) => {
-      let lastError: Error | null = null;
-
-      for (let retry = 0; retry <= maxRetries; retry++) {
-        try {
-          const response = await fetch(url, options);
-
-          // Si es 5xx, reintentar
-          if (response.status >= 500) {
-            throw new Error(`Server error: ${response.status}`);
-          }
-
-          return response;
-        } catch (err) {
-          lastError = err as Error;
-
-          if (retry === maxRetries) {
-            throw lastError;
-          }
-
-          // Esperar antes de reintentar (exponential backoff)
-          const delay = Math.min(1000 * Math.pow(2, retry), 5000);
-          console.log(`⚠️ Retry ${retry + 1}/${maxRetries}, waiting ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      }
-
-      throw lastError!;
-    };
-
-    const pollOnce = async () => {
-      attempts++;
-      console.log(`🔄 Polling attempt ${attempts}/${maxAttempts}...`);
-
-      try {
-        // ✅ Usar backend para polling con retry
-        const { backendUrl: BACKEND_URL } = await import('../lib/config/env');
-
-        if (!BACKEND_URL) {
-          throw new Error('VITE_BACKEND_URL no configurada');
-        }
-
-        const response = await fetchWithRetry(
-          `${BACKEND_URL}/api/generation/cover/status/${taskId}`,
-          {
-            method: 'GET',
+          const response = await fetch(`${BACKEND_URL}/api/generation/cover/status/${taskId}`, {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${import.meta.env.VITE_BACKEND_SECRET || 'dev-token'}`
             }
-          },
-          2 // 2 reintentos por cada poll
-        );
+          });
 
-        // Si es 404, la generación aún no existe, continuar polling
-        if (response.status === 404) {
-          if (attempts >= maxAttempts) {
-            throw new Error('Cover generation timeout - please try again');
+          if (response.status === 404) return null;
+          if (!response.ok) throw new Error(`Status check failed: ${response.status}`);
+
+          const data = await response.json();
+          if (!data.success) throw new Error(data.error?.message || 'Error checking status');
+
+          const status = data.data?.status;
+          const audioUrl = data.data?.audioUrl;
+
+          if (audioUrl && (status === 'COMPLETED' || status === 'completed')) {
+            return {
+              status: 'completed' as const,
+              taskId: taskId,
+              audio_url: audioUrl
+            };
           }
-          return null; // Continuar polling
+
+          if (status === 'FAILED' || status === 'failed') {
+            throw new Error(data.error?.message || 'Cover generation failed');
+          }
+
+          return null;
+        },
+        {
+          interval: 5000,
+          timeout: 300000,
+          retryOptions: { maxRetries: 2 }
         }
+      );
 
-        if (!response.ok) {
-          throw new Error(`Status check failed: ${response.status}`);
-        }
+      setResult(result);
+      setIsGenerating(false);
+      sendResultToGenerator({ audio_url: result.audio_url });
 
-        const data = await response.json();
-
-        if (!data.success) {
-          throw new Error(data.error?.message || 'Error checking status');
-        }
-
-        const status = data.data?.status;
-        const audioUrl = data.data?.audioUrl;
-
-        console.log(`📊 Status: ${status}`);
-
-        // Backend devuelve formato estándar
-        if (audioUrl && (status === 'COMPLETED' || status === 'completed')) {
-          console.log('✅ Cover completed!');
-          return {
-            status: 'completed' as const,
-            taskId: taskId,
-            audio_url: audioUrl
-          };
-        }
-
-        if (status === 'FAILED' || status === 'failed') {
-          throw new Error(data.error?.message || 'Cover generation failed');
-        }
-
-        // Status es PROCESSING o PENDING, continuar polling
-        if (attempts >= maxAttempts) {
-          throw new Error('Cover generation timeout - please try again');
-        }
-
-        return null; // Continuar polling
-
-      } catch (err: any) {
-        // Solo propagar el error si hemos excedido los intentos
-        if (attempts >= maxAttempts) {
-          throw err;
-        }
-
-        // Si es un error temporal, continuar polling
-        console.warn(`⚠️ Polling error (attempt ${attempts}):`, err.message);
-        return null;
-      }
-    };
-
-    // Loop principal de polling
-    while (attempts < maxAttempts) {
-      try {
-        const result = await pollOnce();
-
-        if (result) {
-          // Éxito! Actualizar estado y terminar
-          setResult(result);
-          setIsGenerating(false);
-
-          // Enviar resultado de vuelta a The Generator
-          sendResultToGenerator({ audio_url: result.audio_url });
-          return;
-        }
-
-        // No hay resultado aún, esperar y reintentar
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
-
-      } catch (err: any) {
-        console.error('❌ Polling failed:', err);
-        setError(err.message || 'Error checking cover status');
-        setIsGenerating(false);
-        return;
-      }
+    } catch (err: any) {
+      console.error('Polling failed:', err);
+      setError(err.message || 'Error checking cover status');
+      setIsGenerating(false);
     }
-
-    // Si llegamos aquí, timeout
-    setError('Cover generation timeout - please try again');
-    setIsGenerating(false);
   };
 
   const reset = () => {

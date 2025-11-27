@@ -9,55 +9,58 @@ import { z } from 'zod';
 const envSchema = z.object({
   // Database (requerida)
   DATABASE_URL: z.string().min(1, 'DATABASE_URL requerida'),
-  
+
   // Redis
   REDIS_URL: z.string().url().optional().or(z.string().startsWith('redis://')),
   REDIS_HOST: z.string().optional(),
   REDIS_PORT: z.string().optional(),
   REDIS_PASSWORD: z.string().optional(),
-  
+
   // JWT (opcional en desarrollo, requerido en producción)
   JWT_SECRET: z.string().min(1, 'JWT_SECRET requerido').optional(),
-  
+
   // Supabase (opcional - puede usar tokens del pool)
   SUPABASE_URL: z.string().url('Supabase URL inválida').optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'Supabase service role key requerida').optional(),
-  
+
   // Suno API (opcional - usa tokens del pool)
   SUNO_API_URL: z.string().url().optional(),
   SUNO_POLLING_URL: z.string().url().optional(),
   SUNO_API_KEY: z.string().min(1, 'Suno API key requerida').optional(),
-  
+
   // Generation API (alias para Suno API - usar estos nombres genéricos)
   GENERATION_API_URL: z.string().url().optional(),
   GENERATION_POLLING_URL: z.string().url().optional(),
-  
+  COVER_API_URL: z.string().url().optional(),
+  NEURAL_ENGINE_API_URL: z.string().url().optional(),
+  NEURAL_ENGINE_POLLING_URL: z.string().url().optional(),
+
   // Frontend (opcional en desarrollo)
   FRONTEND_URL: z.string().min(1, 'Frontend URL requerida').optional(),
-  
+
   // Backend Secret (opcional en desarrollo)
   BACKEND_SECRET: z.string().min(1, 'BACKEND_SECRET requerido').optional(),
-  
+
   // Queue Configuration
   GENERATION_CONCURRENCY: z.string().optional(),
   GENERATION_RATE_LIMIT: z.string().optional(),
-  
+
   // Token Pool
   MIN_TOKENS: z.string().optional(),
   MAX_TOKENS: z.string().optional(),
   ROTATION_INTERVAL: z.string().optional(),
   HEALTH_CHECK_INTERVAL: z.string().optional(),
-  
+
   // Encryption
   TOKEN_ENCRYPTION_KEY: z.string().min(32, 'TOKEN_ENCRYPTION_KEY debe tener al menos 32 caracteres').optional(),
-  
+
   // Stripe (opcional)
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRO_PRICE_ID: z.string().optional(),
   STRIPE_PREMIUM_PRICE_ID: z.string().optional(),
   STRIPE_ENTERPRISE_PRICE_ID: z.string().optional(),
-  
+
   // Environment
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('3001'),
@@ -83,6 +86,9 @@ function validateEnv() {
       SUNO_API_KEY: process.env.SUNO_API_KEY,
       GENERATION_API_URL: process.env.GENERATION_API_URL,
       GENERATION_POLLING_URL: process.env.GENERATION_POLLING_URL,
+      COVER_API_URL: process.env.COVER_API_URL,
+      NEURAL_ENGINE_API_URL: process.env.NEURAL_ENGINE_API_URL,
+      NEURAL_ENGINE_POLLING_URL: process.env.NEURAL_ENGINE_POLLING_URL,
       FRONTEND_URL: process.env.FRONTEND_URL,
       BACKEND_SECRET: process.env.BACKEND_SECRET,
       GENERATION_CONCURRENCY: process.env.GENERATION_CONCURRENCY,
@@ -102,19 +108,19 @@ function validateEnv() {
       LOG_LEVEL: process.env.LOG_LEVEL,
       HOST: process.env.HOST,
     });
-    
+
     if (!result.success) {
       // Solo mostrar warnings, no fallar (permite deploy)
       const missingVars = result.error.issues
         .filter(e => !e.path.includes('SUPABASE') && !e.path.includes('SUNO_API_KEY') && !e.path.includes('FRONTEND_URL') && !e.path.includes('BACKEND_SECRET'))
         .map(e => `${e.path.join('.')}: ${e.message}`)
         .join('\n');
-      
+
       if (missingVars) {
         console.warn('⚠️ WARNING: Algunas variables de entorno faltantes:\n', missingVars);
         console.warn('⚠️ El servicio puede funcionar con valores por defecto o tokens del pool');
       }
-      
+
       // Retornar valores con defaults para variables opcionales
       return {
         DATABASE_URL: process.env.DATABASE_URL || '',
@@ -130,6 +136,7 @@ function validateEnv() {
         SUNO_API_KEY: process.env.SUNO_API_KEY,
         GENERATION_API_URL: process.env.GENERATION_API_URL,
         GENERATION_POLLING_URL: process.env.GENERATION_POLLING_URL,
+        COVER_API_URL: process.env.COVER_API_URL,
         NEURAL_ENGINE_API_URL: process.env.NEURAL_ENGINE_API_URL || process.env.SUNO_API_URL,
         NEURAL_ENGINE_POLLING_URL: process.env.NEURAL_ENGINE_POLLING_URL || process.env.SUNO_POLLING_URL,
         FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -150,9 +157,9 @@ function validateEnv() {
         PORT: process.env.PORT || '3001',
         LOG_LEVEL: (process.env.LOG_LEVEL as 'error' | 'warn' | 'info' | 'debug') || 'info',
         HOST: process.env.HOST,
-      } as z.infer<typeof envSchema> & { NEURAL_ENGINE_API_URL?: string; NEURAL_ENGINE_POLLING_URL?: string };
+      } as z.infer<typeof envSchema>;
     }
-    
+
     return result.data;
   } catch (error) {
     console.error('❌ ERROR validando variables de entorno:', error);

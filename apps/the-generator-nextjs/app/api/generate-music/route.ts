@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedTokenPool } from '@/lib/unified-token-pool'
+import { fetchWithRetry } from '@super-son1k/shared-utils'
 
 export async function POST(req: NextRequest) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
@@ -159,7 +160,7 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ BACKEND_URL configurada:', BACKEND_URL)
 
-    const response = await fetch(`${BACKEND_URL}/api/generation/create`, {
+    const response = await fetchWithRetry(`${BACKEND_URL}/api/generation/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -173,6 +174,9 @@ export async function POST(req: NextRequest) {
         custom_mode: payload.customMode,
         tags: []
       })
+    }, {
+      maxRetries: 3,
+      initialDelay: 1000
     })
 
     console.log('📊 Response Status:', response.status)

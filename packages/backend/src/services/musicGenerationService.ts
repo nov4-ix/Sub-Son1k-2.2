@@ -13,7 +13,15 @@ export interface GenerationRequest {
   duration: number;
   quality: string;
   userId: string; // Required - all generations must be associated with a user
-  generationId: string;
+  generationId?: string;
+}
+
+export interface CoverRequest {
+  audio_url: string;
+  prompt: string;
+  style?: string;
+  customMode?: boolean;
+  userId: string;
 }
 
 export interface GenerationResult {
@@ -113,6 +121,91 @@ export class MusicGenerationService {
   }
 
   /**
+   * Generate cover using AI generation API
+   */
+  async generateCover(request: CoverRequest): Promise<GenerationResult> {
+    try {
+      // Validate userId
+      if (!request.userId) {
+        return {
+          status: 'failed',
+          error: 'userId is required for cover generation'
+        };
+      }
+
+      // Get a healthy token
+      const tokenData = await this.tokenManager.getHealthyToken(request.userId);
+
+      if (!tokenData) {
+        return {
+          status: 'failed',
+          error: 'No available tokens'
+        };
+      }
+
+      // Use the specific cover API URL if different, or default to the main one
+      // Note: The original code used 'https://usa.imgkits.com/node-api/suno/cover'
+      // We should probably make this configurable or part of the axios instance creation
+      const coverApiUrl = env.COVER_API_URL || 'https://usa.imgkits.com/node-api/suno';
+
+      const response = await axios.post(`${coverApiUrl}/cover`, {
+        audio_url: request.audio_url,
+        prompt: request.prompt,
+        customMode: request.customMode || true,
+        style: request.style || 'cover'
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'authorization': `Bearer ${tokenData.token}`,
+          'channel': 'node-api',
+          'origin': 'https://www.livepolls.app',
+          'referer': 'https://www.livepolls.app/'
+        },
+        timeout: 30000
+      });
+
+      if (response.status === 200 && response.data) {
+        const data = response.data;
+        const taskId = data.data?.taskId || data.taskId || data.task_id;
+
+        if (!taskId) {
+          return {
+            status: 'failed',
+            error: 'No task ID received from generation API'
+          };
+        }
+
+        // Update token usage
+        await this.tokenManager.updateTokenUsage(tokenData.tokenId, {
+          endpoint: '/cover',
+          method: 'POST',
+          statusCode: response.status,
+          responseTime: 0,
+          timestamp: new Date()
+        });
+
+        return {
+          status: 'pending',
+          generationTaskId: taskId,
+          estimatedTime: 120 // Covers might take longer?
+        };
+      } else {
+        return {
+          status: 'failed',
+          error: 'Invalid response from cover generation API'
+        };
+      }
+
+    } catch (error) {
+      console.error('Cover generation error:', error);
+      return {
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
    * Check generation status
    */
   async checkGenerationStatus(generationTaskId: string): Promise<GenerationResult> {
@@ -128,8 +221,7 @@ export class MusicGenerationService {
       }
 
       // Polling endpoint para verificar estado
-      // ✅ VALIDAR VARIABLE DE ENTORNO
-      const pollingUrl = (env as any).GENERATION_POLLING_URL || (env as any).NEURAL_ENGINE_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
+      const pollingUrl = env.GENERATION_POLLING_URL || env.NEURAL_ENGINE_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
 
       const response = await axios.get(`${pollingUrl}/get_mj_status/${generationTaskId}`, {
         timeout: 10000,
@@ -198,89 +290,15 @@ export class MusicGenerationService {
    * Check cover generation status
    */
   async checkCoverStatus(generationTaskId: string): Promise<GenerationResult> {
-    try {
-      // Get a healthy token
-      const tokenData = await this.tokenManager.getHealthyToken();
-
-      if (!tokenData) {
-        return {
-          status: 'failed',
-          error: 'No available tokens'
-        };
-      }
-
-      // Polling endpoint para verificar estado de cover
-      const pollingUrl = (env as any).GENERATION_POLLING_URL || (env as any).NEURAL_ENGINE_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
-
-      const response = await axios.get(`${pollingUrl}/get_mj_status/${generationTaskId}`, {
-        timeout: 10000,
-        headers: {
-          'authorization': `Bearer ${tokenData.token}`,
-          'Content-Type': 'application/json',
-          'channel': 'node-api',
-          'origin': 'https://www.livepolls.app',
-          'referer': 'https://www.livepolls.app/'
-        }
-      });
-
-      if (response.status === 200 && response.data) {
-        const data = response.data;
-
-        // Update token usage
-        await this.tokenManager.updateTokenUsage(tokenData.tokenId, {
-          endpoint: `/get_mj_status/${generationTaskId}`,
-          method: 'GET',
-          statusCode: response.status,
-          responseTime: data.responseTime || 0,
-          timestamp: new Date()
-        });
-
-        // API devuelve { running: true/false, audio_url, ... }
-        if (data.running === false && data.audio_url) {
-          return {
-            status: 'completed',
-            generationTaskId,
-            audioUrl: data.audio_url,
-            metadata: {
-              duration: data.duration,
-              createdAt: new Date()
-            }
-          };
-        } else if (data.running === true) {
-          return {
-            status: 'processing',
-            generationTaskId,
-            estimatedTime: 60
-          };
-        } else {
-          return {
-            status: 'pending',
-            generationTaskId,
-            estimatedTime: 60
-          };
-        }
-      } else {
-        return {
-          status: 'failed',
-          error: 'Invalid response from generation API'
-        };
-      }
-
-    } catch (error) {
-      console.error('Cover status check error:', error);
-      return {
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    }
+    // Reuse checkGenerationStatus as the endpoint seems to be the same for status checks
+    return this.checkGenerationStatus(generationTaskId);
   }
 
   /**
    * Create axios instance for generation API
    */
   private createAxiosInstance(token: string): AxiosInstance {
-    // ✅ VALIDAR VARIABLE DE ENTORNO (prevenir crashes)
-    const baseURL = (env as any).GENERATION_API_URL || (env as any).NEURAL_ENGINE_API_URL || 'https://ai.imgkits.com/suno';
+    const baseURL = env.GENERATION_API_URL || env.NEURAL_ENGINE_API_URL || 'https://ai.imgkits.com/suno';
     return axios.create({
       baseURL,
       timeout: 30000,

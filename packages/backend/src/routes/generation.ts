@@ -4,7 +4,6 @@
  */
 
 import { FastifyInstance } from 'fastify';
-import axios from 'axios';
 import { MusicGenerationService } from '../services/musicGenerationService';
 import { AnalyticsService } from '../services/analyticsService';
 import { authMiddleware, quotaMiddleware } from '../middleware/auth';
@@ -13,7 +12,7 @@ import { generationRequestSchema, validateRequest } from '../lib/validation';
 import { env } from '../lib/config';
 
 export function generationRoutes(musicGenerationService: MusicGenerationService, analyticsService: AnalyticsService) {
-  return async function(fastify: FastifyInstance) {
+  return async function (fastify: FastifyInstance) {
     // Generate music with AI generation API
     fastify.post('/create', {
       preHandler: [authMiddleware, quotaMiddleware]
@@ -50,55 +49,33 @@ export function generationRoutes(musicGenerationService: MusicGenerationService,
           });
         }
 
-        // Get a healthy token from pool
-        const tokenData = await fastify.tokenManager.getHealthyToken(user.id);
-        
-        if (!tokenData) {
-          return reply.code(503).send({
-            success: false,
-            error: {
-              code: 'NO_TOKENS_AVAILABLE',
-              message: 'No available tokens in pool'
-            }
-          });
-        }
-
-        // Call generation API
-        const response = await axios.post('https://ai.imgkits.com/suno/generate', {
+        // Call generation API via service
+        const result = await musicGenerationService.generateMusic({
           prompt,
           style: style || 'pop',
           duration: duration || 60,
-          quality: quality || 'standard'
-        }, {
-          headers: {
-            'Content-Type': 'application/json',
-            'authorization': `Bearer ${tokenData.token}`,
-            'channel': 'node-api',
-            'origin': 'https://www.livepolls.app',
-            'referer': 'https://www.livepolls.app/'
-          },
-          timeout: 30000
+          quality: quality || 'standard',
+          userId: user.id
         });
 
-        if (response.status !== 200 || !response.data) {
+        if (result.status === 'failed') {
           return reply.code(500).send({
             success: false,
             error: {
-              code: 'GENERATION_API_ERROR',
-              message: 'Generation API error'
+              code: 'GENERATION_FAILED',
+              message: result.error || 'Failed to generate music'
             }
           });
         }
 
-        const data = response.data;
-        const taskId = data.data?.taskId || data.taskId || data.task_id;
+        const taskId = result.generationTaskId;
 
         if (!taskId) {
           return reply.code(500).send({
             success: false,
             error: {
               code: 'NO_TASK_ID',
-              message: 'No task ID received from generation API'
+              message: 'No task ID received from generation service'
             }
           });
         }
@@ -132,15 +109,6 @@ export function generationRoutes(musicGenerationService: MusicGenerationService,
           quality: quality || 'standard'
         });
 
-        // Update token usage
-        await fastify.tokenManager.updateTokenUsage(tokenData.tokenId, {
-          endpoint: '/generate',
-          method: 'POST',
-          statusCode: response.status,
-          responseTime: 0,
-          timestamp: new Date()
-        });
-
         // Track analytics
         await analyticsService.trackGeneration({
           userId: user.id,
@@ -168,7 +136,7 @@ export function generationRoutes(musicGenerationService: MusicGenerationService,
           success: false,
           error: {
             code: 'GENERATION_FAILED',
-            message: error.response?.data?.message || error.message || 'Failed to generate music'
+            message: error.message || 'Failed to generate music'
           }
         });
       }
@@ -203,13 +171,13 @@ export function generationRoutes(musicGenerationService: MusicGenerationService,
         if (generation.status === 'PENDING' || generation.status === 'PROCESSING') {
           if (generation.generationTaskId) {
             const status = await musicGenerationService.checkGenerationStatus(generation.generationTaskId);
-            
+
             // Normalize status
-            const normalizedStatus = status.status === 'pending' ? 'PROCESSING' : 
-                                     status.status === 'processing' ? 'PROCESSING' :
-                                     status.status === 'completed' ? 'COMPLETED' :
-                                     status.status === 'failed' ? 'FAILED' : generation.status;
-            
+            const normalizedStatus = status.status === 'pending' ? 'PROCESSING' :
+              status.status === 'processing' ? 'PROCESSING' :
+                status.status === 'completed' ? 'COMPLETED' :
+                  status.status === 'failed' ? 'FAILED' : generation.status;
+
             if (normalizedStatus !== generation.status || status.audioUrl) {
               await fastify.prisma.generation.update({
                 where: { id: generation.id },
@@ -322,55 +290,33 @@ export function generationRoutes(musicGenerationService: MusicGenerationService,
           });
         }
 
-        // Get a healthy token from pool
-        const tokenData = await fastify.tokenManager.getHealthyToken(user.id);
-        
-        if (!tokenData) {
-          return reply.code(503).send({
-            success: false,
-            error: {
-              code: 'NO_TOKENS_AVAILABLE',
-              message: 'No available tokens in pool'
-            }
-          });
-        }
-
-        // Call generation API for cover
-        const response = await axios.post('https://usa.imgkits.com/node-api/suno/cover', {
+        // Call generation API for cover via service
+        const result = await musicGenerationService.generateCover({
           audio_url,
           prompt,
+          style: style || 'cover',
           customMode: customMode || true,
-          style: style || 'cover'
-        }, {
-          headers: {
-            'Content-Type': 'application/json',
-            'authorization': `Bearer ${tokenData.token}`,
-            'channel': 'node-api',
-            'origin': 'https://www.livepolls.app',
-            'referer': 'https://www.livepolls.app/'
-          },
-          timeout: 30000
+          userId: user.id
         });
 
-        if (response.status !== 200 || !response.data) {
+        if (result.status === 'failed') {
           return reply.code(500).send({
             success: false,
             error: {
-              code: 'GENERATION_API_ERROR',
-              message: 'Generation API error'
+              code: 'COVER_GENERATION_FAILED',
+              message: result.error || 'Failed to generate cover'
             }
           });
         }
 
-        const data = response.data;
-        const taskId = data.data?.taskId || data.taskId || data.task_id;
+        const taskId = result.generationTaskId;
 
         if (!taskId) {
           return reply.code(500).send({
             success: false,
             error: {
               code: 'NO_TASK_ID',
-              message: 'No task ID received from generation API'
+              message: 'No task ID received from generation service'
             }
           });
         }
@@ -404,15 +350,6 @@ export function generationRoutes(musicGenerationService: MusicGenerationService,
           quality: 'standard'
         });
 
-        // Update token usage
-        await fastify.tokenManager.updateTokenUsage(tokenData.tokenId, {
-          endpoint: '/cover',
-          method: 'POST',
-          statusCode: response.status,
-          responseTime: 0,
-          timestamp: new Date()
-        });
-
         // Track analytics
         await analyticsService.trackGeneration({
           userId: user.id,
@@ -440,7 +377,7 @@ export function generationRoutes(musicGenerationService: MusicGenerationService,
           success: false,
           error: {
             code: 'COVER_GENERATION_FAILED',
-            message: error.response?.data?.message || error.message || 'Failed to generate cover'
+            message: error.message || 'Failed to generate cover'
           }
         });
       }
@@ -475,13 +412,13 @@ export function generationRoutes(musicGenerationService: MusicGenerationService,
         // Check status with generation API if still pending or processing
         if (generation.status === 'PENDING' || generation.status === 'PROCESSING') {
           const status = await musicGenerationService.checkCoverStatus(taskId);
-          
+
           // Normalize status
-          const normalizedStatus = status.status === 'pending' ? 'PROCESSING' : 
-                                   status.status === 'processing' ? 'PROCESSING' :
-                                   status.status === 'completed' ? 'COMPLETED' :
-                                   status.status === 'failed' ? 'FAILED' : generation.status;
-          
+          const normalizedStatus = status.status === 'pending' ? 'PROCESSING' :
+            status.status === 'processing' ? 'PROCESSING' :
+              status.status === 'completed' ? 'COMPLETED' :
+                status.status === 'failed' ? 'FAILED' : generation.status;
+
           if (normalizedStatus !== generation.status || status.audioUrl) {
             await fastify.prisma.generation.update({
               where: { id: generation.id },
