@@ -1,9 +1,5 @@
 {
-  "version": 2,
-  "buildCommand": "pnpm run build",
+  "buildCommand": "echo 'Already built'",
   "outputDirectory": ".next",
-  "installCommand": "pnpm install --no-frozen-lockfile",
-  "devCommand": "pnpm run dev",
-  "framework": "nextjs",
-  "regions": ["iad1"]
+  "installCommand": "echo 'No install needed'"
 }
