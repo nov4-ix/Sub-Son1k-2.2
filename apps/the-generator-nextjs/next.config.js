@@ -24,6 +24,9 @@ const nextConfig = {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
   },
   transpilePackages: ['@super-son1k/shared-ui', '@super-son1k/shared-hooks', '@super-son1k/shared-types', '@super-son1k/shared-utils'],
+
+  // Output standalone for better deployment
+  output: 'standalone',
 };
 
 module.exports = nextConfig;

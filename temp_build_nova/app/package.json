@@ -11,8 +11,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@super-son1k/shared-ui": "file:../../packages/shared-ui",
-    "@super-son1k/shared-utils": "file:../../packages/shared-utils",
+    "@super-son1k/shared-ui": "file:../packages/shared-ui",
+    "@super-son1k/shared-utils": "file:../packages/shared-utils",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.9.4",

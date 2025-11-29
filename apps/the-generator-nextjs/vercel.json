@@ -1,5 +1,5 @@
 {
-  "buildCommand": "echo 'Already built'",
-  "outputDirectory": ".next",
-  "installCommand": "echo 'No install needed'"
+    "installCommand": "npm install --legacy-peer-deps",
+    "buildCommand": "npm run build",
+    "framework": "nextjs"
 }
