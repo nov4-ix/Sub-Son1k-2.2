@@ -1,9 +1,21 @@
+import { TrendingUp, ArrowUpRight, Users, Heart, Eye } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-
-// ...
 
 export function ImpactMetricsPanel() {
     const { t } = useTranslation();
+
+    const metrics = [
+        { icon: Users, label: 'Followers', current: '12.5K', projected: '18K' },
+        { icon: Heart, label: 'Engagement', current: '8.2%', projected: '12%' },
+        { icon: Eye, label: 'Reach', current: '50K', projected: '80K' }
+    ];
+
+    const data = {
+        insights: [
+            'Post 3x per week during peak hours',
+            'Use carousel posts for 2x engagement'
+        ]
+    };
     // ...
 
     return (

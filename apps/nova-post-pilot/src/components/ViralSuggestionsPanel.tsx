@@ -1,9 +1,56 @@
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { TrendingUp, Check, Copy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 
-// ...
+interface ViralHook {
+    hook: string;
+    type: string;
+    estimatedImpact: 'High' | 'Medium';
+    rationale: string;
+}
 
 export function ViralSuggestionsPanel() {
     const { t } = useTranslation();
+    const [hooks, setHooks] = useState<ViralHook[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+    const fetchHooks = async () => {
+        setLoading(true);
+        // Simulate fetching hooks
+        setTimeout(() => {
+            setHooks([
+                {
+                    hook: "What if I told you there's a better way?",
+                    type: "Question Hook",
+                    estimatedImpact: "High",
+                    rationale: "Creates curiosity and challenges assumptions"
+                },
+                {
+                    hook: "The secret they don't want you to know...",
+                    type: "Mystery Hook",
+                    estimatedImpact: "High",
+                    rationale: "FOMO-driven engagement trigger"
+                },
+                {
+                    hook: "Here's exactly how I did it (and you can too)",
+                    type: "Value Hook",
+                    estimatedImpact: "Medium",
+                    rationale: "Promises actionable value"
+                }
+            ]);
+            setLoading(false);
+        }, 1000);
+    };
+
+    const handleCopy = (text: string, index: number) => {
+        navigator.clipboard.writeText(text);
+        setCopiedIndex(index);
+        toast.success('Hook copied to clipboard!');
+        setTimeout(() => setCopiedIndex(null), 2000);
+    };
     // ...
 
     return (
@@ -45,8 +92,8 @@ export function ViralSuggestionsPanel() {
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className={`text-[10px] px-2 py-0.5 rounded-full border ${hook.estimatedImpact === 'High'
-                                                ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                                                : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400'
+                                            ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                                            : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400'
                                             }`}>
                                             {hook.estimatedImpact} Impact
                                         </span>

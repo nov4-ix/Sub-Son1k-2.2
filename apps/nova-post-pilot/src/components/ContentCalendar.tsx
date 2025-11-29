@@ -1,9 +1,44 @@
+import { useState } from 'react';
+import { Calendar as CalendarIcon, Clock, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-// ...
+interface ScheduledPost {
+    content: string;
+    scheduledTime: string;
+}
+
+interface BestSlot {
+    day: string;
+    time: string;
+}
 
 export function ContentCalendar() {
     const { t } = useTranslation();
+    const [posts] = useState<ScheduledPost[]>([]);
+
+    // Generate calendar days (current month)
+    const days: Date[] = [];
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    // Start from Sunday before first day
+    const startDate = new Date(firstDay);
+    startDate.setDate(firstDay.getDate() - firstDay.getDay());
+
+    // Fill calendar (5 weeks)
+    for (let i = 0; i < 35; i++) {
+        const date = new Date(startDate);
+        date.setDate(startDate.getDate() + i);
+        days.push(date);
+    }
+
+    // Mock best posting times
+    const bestSlots: BestSlot[] = [
+        { day: 'Monday', time: '10:00 AM' },
+        { day: 'Wednesday', time: '2:00 PM' },
+        { day: 'Friday', time: '6:00 PM' }
+    ];
     // ...
 
     return (

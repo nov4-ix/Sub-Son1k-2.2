@@ -27,8 +27,32 @@ import { useContentGeneration } from './hooks/useContentGeneration'
 import { ViralSuggestionsPanel } from './components/ViralSuggestionsPanel'
 import { ContentCalendar } from './components/ContentCalendar'
 import { ImpactMetricsPanel } from './components/ImpactMetricsPanel'
-import { PremiumPaywall } from '../../nexus-visual/src/components/ui/PremiumPaywall'
-import { useAuth } from '../../nexus-visual/src/hooks/useAuth'
+
+// Mock Premium Paywall component (TODO: move to shared-ui)
+function PremiumPaywall({ feature, description, currentTier, requiredTier }: {
+  feature: string;
+  description: string;
+  currentTier?: string;
+  requiredTier: string;
+}) {
+  return (
+    <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 text-center">
+      <div className="text-4xl mb-4">🔒</div>
+      <h3 className="text-lg font-bold text-white mb-2">{feature}</h3>
+      <p className="text-sm text-gray-400 mb-4">{description}</p>
+      <p className="text-xs text-gray-500">Requires {requiredTier} tier</p>
+    </div>
+  );
+}
+
+// Mock useAuth hook (TODO: move to shared-hooks)
+function useAuth() {
+  return {
+    isPremium: true,
+    isUltimate: true,
+    tier: 'VANGUARD'
+  };
+}
 
 const postSchema = z.object({
   topic: z.string().min(1, 'Topic is required'),
