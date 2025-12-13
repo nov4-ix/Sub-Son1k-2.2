@@ -23,6 +23,7 @@ import LyricGenerator from './components/LyricGenerator';
 import DAWInterface from './components/DAWInterface';
 import { useSunoCover } from './hooks/useSunoCover';
 import { supabaseStorage } from './lib/api/supabase-storage';
+import { InvocationPortal } from './components/InvocationPortal';
 import type { AnalysisResult } from './types/studio';
 
 export function GhostStudio() {
@@ -119,7 +120,8 @@ export function GhostStudio() {
   };
 
   return (
-    <div className="min-h-screen bg-bg-primary">
+    <div className="min-h-screen bg-bg-primary relative">
+      <InvocationPortal />
       {/* Header */}
       <header className="border-b border-teal-dark bg-bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">

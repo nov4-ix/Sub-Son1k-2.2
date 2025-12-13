@@ -30,7 +30,6 @@ export const TheGeneratorExpress = () => {
 
         try {
             const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://sub-son1k-2-2.fly.dev';
-            const BACKEND_SECRET = import.meta.env.VITE_BACKEND_SECRET || 'son1k-backend-secret-2024-prod';
 
             // Construct prompt with voice type if selected
             let finalPrompt = prompt;
@@ -40,40 +39,44 @@ export const TheGeneratorExpress = () => {
 
             setGenerationMessage('Conectando con Neural Engine...');
 
-            const response = await fetch(`${BACKEND_URL}/api/generation/create`, {
+            // Use the new Robust API (Phoenix Protocol)
+            const response = await fetch(`${BACKEND_URL}/api/generate`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${BACKEND_SECRET}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     prompt: finalPrompt,
-                    style: 'custom', // Use prompt as style/description
-                    duration: 120,
-                    quality: 'standard',
-                    custom_mode: false // Simple mode for Express
+                    make_instrumental: false,
+                    wait_audio: false
                 })
             });
 
             if (!response.ok) {
                 const errorText = await response.text();
+                // Check for 401 specifically to guide user
+                if (response.status === 401) {
+                    throw new Error('NO_TOKENS_AVAILABLE');
+                }
                 throw new Error(`Error del servidor: ${errorText}`);
             }
 
-            const data = await response.json();
-            const generationId = data.data?.generationId || data.generationId;
-            const sunoId = data.data?.sunoId || data.sunoId;
+            const clips = await response.json();
 
-            if (!generationId) throw new Error('No se recibió ID de generación');
+            if (!clips || clips.length === 0) throw new Error('No se iniciaron clips de generación');
+
+            // Suno usually returns 2 clips. We track them by ID.
+            const clipIds = clips.map((c: any) => c.id);
+            const primaryClipId = clipIds[0];
 
             setGenerationMessage('Generando audio (esto toma unos segundos)...');
-            pollTrackStatus(generationId);
+            pollTrackStatus(primaryClipId);
 
         } catch (error: any) {
             console.error('Generation error:', error);
 
-            // Check if error is due to missing tokens
-            if (error.message?.includes('NO_TOKENS_AVAILABLE') || error.message?.includes('No available tokens')) {
+            // Check if error is due to missing tokens or auth
+            if (error.message?.includes('NO_TOKENS_AVAILABLE') || error.message?.includes('No available tokens') || error.message?.includes('401')) {
                 setShowExtensionWizard(true);
                 toast.error('Se requiere instalar la extensión para generar música');
             } else {
@@ -85,12 +88,11 @@ export const TheGeneratorExpress = () => {
         }
     };
 
-    const pollTrackStatus = async (generationId: string) => {
+    const pollTrackStatus = async (clipId: string) => {
         const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://sub-son1k-2-2.fly.dev';
-        const BACKEND_SECRET = import.meta.env.VITE_BACKEND_SECRET || 'son1k-backend-secret-2024-prod';
 
         let attempts = 0;
-        const maxAttempts = 60; // 5 minutes
+        const maxAttempts = 60; // 5 minutes (every 5s)
 
         const checkStatus = async () => {
             if (attempts >= maxAttempts) {
@@ -102,22 +104,26 @@ export const TheGeneratorExpress = () => {
             attempts++;
 
             try {
-                const response = await fetch(`${BACKEND_URL}/api/generation/${generationId}/status`, {
-                    headers: { 'Authorization': `Bearer ${BACKEND_SECRET}` }
-                });
+                // Use the new Robust API getter
+                const response = await fetch(`${BACKEND_URL}/api/get?ids=${clipId}`);
 
                 if (response.ok) {
-                    const data = await response.json();
-                    const gen = data.data;
+                    const clips = await response.json();
+                    const clip = clips[0];
 
-                    if (gen && gen.status === 'completed' && gen.audioUrl) {
-                        setTrackUrl(gen.audioUrl);
-                        setIsGenerating(false);
-                        setGenerationMessage('¡Canción generada!');
-                        toast.success('¡Tu canción está lista!');
-                        return;
-                    } else if (gen && gen.status === 'failed') {
-                        throw new Error(gen.error || 'La generación falló');
+                    if (clip) {
+                        // Check for completion or error
+                        if (clip.status === 'complete' || clip.status === 'streaming') {
+                            if (clip.audio_url) {
+                                setTrackUrl(clip.audio_url);
+                                setIsGenerating(false);
+                                setGenerationMessage('¡Canción generada!');
+                                toast.success('¡Tu canción está lista!');
+                                return;
+                            }
+                        } else if (clip.status === 'error') {
+                            throw new Error(clip.error_message || 'La generación falló');
+                        }
                     }
                 }
 

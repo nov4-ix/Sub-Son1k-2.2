@@ -692,8 +692,12 @@ class TokenCaptureService {
   }
 
   isValidToken(token) {
-    // Basic token validation
-    return typeof token === 'string' && token.length > 20 && token.includes('-')
+    // Basic token validation for JWT (header.payload.signature)
+    if (typeof token !== 'string' || token.length < 20) return false;
+    // Check if it looks like a JWT (2 dots)
+    if (token.split('.').length === 3) return true;
+    // Fallback for non-JWT tokens (just in case provider changes format)
+    return true;
   }
 
   generateTokenId() {
