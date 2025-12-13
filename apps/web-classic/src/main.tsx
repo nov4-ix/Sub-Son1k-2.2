@@ -14,8 +14,7 @@ import { useSecretKey } from './hooks/useSecretKey'
 // Main App Component
 function App() {
   const location = useLocation()
-  const [isChatOpen, setIsChatOpen] = React.useState(false)
-  // const isGeneratorPage = location.pathname === '/generator'
+  const [isChatOpen, setIsChatOpen] = React.useState(true) // Open by default
 
   // Easter Egg: Secret Key detection
   const secretTriggered = useSecretKey()
@@ -30,25 +29,40 @@ function App() {
 
   // Navigate to Nexus after transition completes
   const handleTransitionComplete = () => {
-    // TODO: Replace with actual Nexus Visual URL when deployed
-    // For now, we'll use a placeholder or localhost:5174 (typical Vite port for second app)
-    window.location.href = 'http://localhost:5174'
+    window.location.href = 'https://nexus-visual-am0iwec7d-son1kvers3s-projects-c805d053.vercel.app'
   }
 
   return (
-    <div className="min-h-screen bg-[#171925] text-white">
+    <div className="min-h-screen bg-[#171925] text-white overflow-x-hidden">
       {/* Routes */}
       <Routes>
         <Route path="/generator" element={<TheGeneratorPage />} />
         <Route path="/" element={<TheGeneratorExpress />} />
       </Routes>
 
-      {/* Pixel Chat Modal - Temporarily disabled or can be re-enabled if needed */}
-      {/* Pixel Chat Modal */}
-      <PixelChatAdvanced
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-      />
+      {/* Pixel Chat Floating Interface */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-4 pointer-events-none">
+
+        {/* Pixel Chat Window */}
+        <div className="pointer-events-auto">
+          <PixelChatAdvanced
+            isOpen={isChatOpen}
+            onClose={() => setIsChatOpen(false)}
+          />
+        </div>
+
+        {/* Floating Toggle Button (Only visible when chat is closed) */}
+        {!isChatOpen && (
+          <button
+            onClick={() => setIsChatOpen(true)}
+            className="pointer-events-auto w-14 h-14 bg-gradient-to-r from-[#40FDAE] to-[#B858FE] rounded-full shadow-[0_0_20px_rgba(64,253,174,0.4)] flex items-center justify-center hover:scale-110 transition-transform cursor-pointer animate-float"
+          >
+            <div className="w-8 h-8 bg-[#171925] rounded-lg flex items-center justify-center">
+              <span className="text-xl">👾</span>
+            </div>
+          </button>
+        )}
+      </div>
 
       {/* Epic Transition Overlay */}
       <TransitionOverlay

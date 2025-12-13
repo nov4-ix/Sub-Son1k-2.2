@@ -252,6 +252,56 @@ export class TokenManager extends EventEmitter {
 
     } catch (error) {
       this.emit('tokenError', { error, operation: 'getHealthyToken', userId });
+      // Don't fail yet, try emergency
+    }
+
+    // Fallback: Emergency Mode
+    console.warn('⚠️ Main token retrieval failed, attempting Emergency Mode...');
+    const emergencyToken = await this.getEmergencyToken();
+    if (emergencyToken) {
+      // Return a dummy tokenId since emergency mode bypasses tracking logic mostly
+      return {
+        token: emergencyToken,
+        tokenId: 'emergency-bypass'
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * EMERGENCY BYPASS: Get any valid token without locks/redis/complex checks
+   * Use this when main logic fails but tokens exist.
+   */
+  async getEmergencyToken(): Promise<string | null> {
+    try {
+      // Find first valid token directly from DB
+      const tokenRecord = await this.prisma.token.findFirst({
+        where: {
+          isActive: true,
+          isValid: true
+        },
+        orderBy: {
+          updatedAt: 'desc' // Try most recently updated/checked first
+        }
+      });
+
+      if (!tokenRecord) {
+        console.warn('⚠️ EMERGENCY: No valid tokens found even in emergency mode');
+        return null;
+      }
+
+      // Decrypt and return
+      if (tokenRecord.encryptedToken) {
+        return this.decryptToken(tokenRecord.encryptedToken);
+      }
+
+      // Fallback for old unencrypted tokens (if any)
+      // Note: In strict mode we might not store unencrypted, but checking just in case
+      return null;
+
+    } catch (error) {
+      console.error('CRITICAL: Emergency token retrieval failed:', error);
       return null;
     }
   }

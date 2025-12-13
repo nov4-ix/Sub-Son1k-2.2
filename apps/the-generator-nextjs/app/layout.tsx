@@ -2,6 +2,7 @@ import './globals.css';
 import './globals-mobile.css';
 import type { Metadata, Viewport } from 'next';
 import ClientAuthProvider from '../components/ClientAuthProvider';
+import { FloatingPixel } from '../components/FloatingPixel';
 import { ErrorBoundary } from '@super-son1k/shared-ui';
 
 export const metadata: Metadata = {
@@ -44,6 +45,11 @@ export default function RootLayout({
         <ErrorBoundary>
           <ClientAuthProvider>
             {children}
+            <div className="pointer-events-none fixed inset-0 z-50">
+              <div className="pointer-events-auto">
+                <FloatingPixel />
+              </div>
+            </div>
           </ClientAuthProvider>
         </ErrorBoundary>
       </body>
