@@ -3,7 +3,6 @@
 // Uso: node scripts/inject-token.mjs "TU_TOKEN_AQUI"
 
 const BACKEND_URL = 'https://sub-son1k-2-2.fly.dev';
-const SECRET = 'son1k-backend-secret-2024-prod';
 
 async function injectToken() {
     const token = process.argv[2];
@@ -14,18 +13,18 @@ async function injectToken() {
     }
 
     console.log('💉 Iniciando inyección de token en Backend Enterprise...');
-    console.log(`Target: ${BACKEND_URL}`);
+    console.log(`Target: ${BACKEND_URL}/api/tokens/add-public`);
 
     try {
-        const response = await fetch(`${BACKEND_URL}/api/tokens/add`, {
+        const response = await fetch(`${BACKEND_URL}/api/tokens/add-public`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${SECRET}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                tokens: [token],
-                tier: 'PREMIUM'
+                token: token,
+                label: 'manual-injection-golden',
+                source: 'manual'
             })
         });
 
