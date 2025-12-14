@@ -181,7 +181,9 @@ export const TheGeneratorExpress = () => {
                                 <h1 className="text-xl font-light tracking-wider text-white">
                                     SON1KVERS<span className="font-normal">3</span>
                                 </h1>
-                                <p className="text-[10px] text-white/40 uppercase tracking-widest">Music Generation Platform</p>
+                                <p className="text-[10px] text-white/40 uppercase tracking-widest">
+                                    Music Generation Platform <span className="text-[#40FDAE]">v2.2</span>
+                                </p>
                             </div>
                         </div>
 
