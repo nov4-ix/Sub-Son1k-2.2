@@ -11,8 +11,8 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@super-son1k/shared-types": "workspace:*",
-    "@super-son1k/shared-services": "workspace:*",
+    "@super-son1k/shared-types": "file:../shared-types",
+    "@super-son1k/shared-services": "file:../shared-services",
     "socket.io-client": "^4.7.0"
   },
   "devDependencies": {

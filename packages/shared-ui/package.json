@@ -8,8 +8,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@super-son1k/shared-types": "workspace:*",
-    "@super-son1k/shared-hooks": "workspace:*",
+    "@super-son1k/shared-types": "file:../shared-types",
+    "@super-son1k/shared-hooks": "file:../shared-hooks",
     "react-window": "^1.8.10"
   },
   "devDependencies": {
