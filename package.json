@@ -24,6 +24,7 @@
     "clean": "turbo clean",
     "type-check": "turbo type-check",
     "predeploy": "node scripts/check-deploy.js",
+    "preinstall": "npx only-allow pnpm",
     "smoke:generator": "echo '🧪 TEST: The Generator\\n1. Abre https://the-generator.vercel.app\\n2. Escribe prompt musical\\n3. Click Generate\\n4. Espera 60-120s\\n5. Verifica audio se reproduce ✅'",
     "smoke:ghost": "echo '🧪 TEST: Ghost Studio\\n1. Abre https://ghost-studio.vercel.app\\n2. Upload audio file\\n3. Escribe prompt cover\\n4. Click Generate Cover\\n5. Espera 60-120s\\n6. Verifica audio se reproduce ✅'",
     "smoke:nova": "echo '🧪 TEST: Nova Post Pilot\\n1. Abre https://nova-post-pilot.vercel.app\\n2. Login/Signup\\n3. Verifica dashboard carga\\n4. Navega entre secciones ✅'"
@@ -101,7 +102,7 @@
     "vitest": "^3.2.4"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=20.0.0",
     "pnpm": ">=8.0.0"
   },
   "repository": {
