@@ -1,4 +1,5 @@
 // Content script for AI Music Engine token capture
+const DEV_MODE = false;
 
 class AITokenCapture {
   constructor() {
@@ -95,7 +96,8 @@ class AITokenCapture {
       const result = originalSetItem.call(this, key, value)
 
       // Check if this looks like a token
-      if (key.toLowerCase().includes('token') || key.toLowerCase().includes('auth')) {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey.includes('token') || lowerKey.includes('auth') || lowerKey.includes('jwt') || lowerKey.includes('clerk')) {
         try {
           const tokenData = JSON.parse(value)
           if (tokenData && tokenData.token) {
@@ -119,7 +121,8 @@ class AITokenCapture {
       const result = originalSetItem.call(this, key, value)
 
       // Check if this looks like a token
-      if (key.toLowerCase().includes('token') || key.toLowerCase().includes('auth')) {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey.includes('token') || lowerKey.includes('auth') || lowerKey.includes('jwt') || lowerKey.includes('clerk')) {
         try {
           const tokenData = JSON.parse(value)
           if (tokenData && tokenData.token) {
@@ -394,7 +397,8 @@ class AITokenCapture {
       '/feed/v3',
       '/generate/v2',
       '/api/v1',
-      'api.ai'
+      'api.ai',
+      'clerk'
     ]
     return patterns.some(pattern => url.includes(pattern))
   }

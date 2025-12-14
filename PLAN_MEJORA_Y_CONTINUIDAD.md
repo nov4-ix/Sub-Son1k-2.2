@@ -56,7 +56,7 @@ interface TokenCacheStrategy {
   }
   
   async warmUp(): Promise<void> {
-    // Pre-calentar tokens al iniciar el servidor
+    // P re-calentar tokens al iniciar el servidor
     // Validar tokens en paralelo para asegurar disponibilidad inmediata
   }
 }

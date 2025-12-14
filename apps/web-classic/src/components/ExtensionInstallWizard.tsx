@@ -99,14 +99,14 @@ export const ExtensionInstallWizard: React.FC<ExtensionWizardProps> = ({ isOpen,
 
                             <div className="space-y-4 mb-8">
                                 <a
-                                    href="/son1k-engine-v2.1.zip"
-                                    download="Son1k_Neural_Bridge_v2.1.zip"
+                                    href="/son1k-engine-v2.2.zip"
+                                    download="Son1k_Neural_Bridge_v2.2.zip"
                                     className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10 hover:border-[#40FDAE]/50 transition-colors cursor-pointer group no-underline"
                                 >
                                     <div className="w-10 h-10 rounded-full bg-[#40FDAE]/20 flex items-center justify-center text-[#40FDAE] font-bold">1</div>
                                     <div className="flex-1">
                                         <h4 className="font-semibold text-white group-hover:text-[#40FDAE]">Descargar Paquete</h4>
-                                        <p className="text-xs text-white/40">Son1k_Engine_v2.1.zip</p>
+                                        <p className="text-xs text-white/40">Son1k_Engine_v2.2.zip</p>
                                     </div>
                                     <Download className="w-5 h-5 text-white/50 group-hover:text-[#40FDAE]" />
                                 </a>
