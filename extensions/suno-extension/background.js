@@ -147,6 +147,11 @@ class TokenCaptureService {
     // Start auto-extraction when service starts
     this.startAutoExtraction()
 
+    // FORCE CONFIG REFRESH: Clear old URLs from storage to ensure we use production defaults
+    chrome.storage.local.remove(['backendUrl', 'generatorUrl'], () => {
+      if (DEV_MODE) console.log('Configuration flushed to ensure production targets');
+    });
+
     // Listen for messages from content scripts
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       this.handleMessage(message, sender, sendResponse)

@@ -7,7 +7,7 @@ class Son1kIntegration {
 
   initializeIntegration() {
     console.log('Super-Son1k Integration initialized')
-    
+
     // Listen for messages from background script
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.type === 'TOKEN_CAPTURED') {
@@ -17,9 +17,23 @@ class Son1kIntegration {
 
     // Add extension status indicator
     this.addStatusIndicator()
-    
+
     // Monitor for token sync requests
     this.monitorTokenSync()
+
+    // Inject Bridge Signal for Frontend Detection
+    this.injectBridgeSignal()
+  }
+
+  injectBridgeSignal() {
+    if (!document.getElementById('son1k-bridge-active')) {
+      const signal = document.createElement('div');
+      signal.id = 'son1k-bridge-active';
+      signal.style.display = 'none';
+      signal.setAttribute('data-version', '2.1.0');
+      document.body.appendChild(signal);
+      console.log('Neural Bridge Signal Injected');
+    }
   }
 
   addStatusIndicator() {

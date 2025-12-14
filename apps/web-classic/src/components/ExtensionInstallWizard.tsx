@@ -1,262 +1,144 @@
-/**
- * Extension Installation Wizard Component
- * Guides users through Chrome extension installation
- */
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { X, CheckCircle, Chrome, Download, Settings } from 'lucide-react'
+import React, { useState, useEffect } from 'react';
+import { Download, ShieldCheck, Cpu, ArrowRight, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 interface ExtensionWizardProps {
-    isOpen: boolean
-    onClose: () => void
-    onComplete: () => void
+    isOpen: boolean;
+    onClose: () => void;
+    onInstalled: () => void;
 }
 
-export const ExtensionInstallWizard: React.FC<ExtensionWizardProps> = ({
-    isOpen,
-    onClose,
-    onComplete
-}) => {
-    const [currentStep, setCurrentStep] = useState(0)
-    const [agreedToTerms, setAgreedToTerms] = useState(false)
+export const ExtensionInstallWizard: React.FC<ExtensionWizardProps> = ({ isOpen, onClose, onInstalled }) => {
+    const [step, setStep] = useState(1);
+    const [agreed, setAgreed] = useState(true);
+    const [isChecking, setIsChecking] = useState(false);
 
-    const steps = [
-        {
-            title: 'Términos y Condiciones',
-            description: 'Lee y acepta para continuar',
-            action: 'terms'
-        },
-        {
-            title: 'Descargar Extensión',
-            description: 'Descarga el archivo de la extensión',
-            action: 'download'
-        },
-        {
-            title: 'Abrir Chrome Extensions',
-            description: 'Ve a chrome://extensions/',
-            action: 'navigate'
-        },
-        {
-            title: 'Activar Modo Desarrollador',
-            description: 'Activa el interruptor arriba a la derecha',
-            action: 'enable-dev'
-        },
-        {
-            title: 'Cargar Extensión',
-            description: 'Arrastra el archivo descargado',
-            action: 'install'
-        },
-        {
-            title: '¡Listo!',
-            description: 'La extensión está instalada',
-            action: 'complete'
-        }
-    ]
+    // Detección automática de la extensión
+    useEffect(() => {
+        const checkExtension = () => {
+            // Buscamos la marca que deja la extensión en el DOM
+            // @ts-ignore
+            if (window.SON1K_EXTENSION_INSTALLED || document.getElementById('son1k-bridge-active')) {
+                onInstalled();
+            }
+        };
 
-    const handleNext = () => {
-        if (currentStep < steps.length - 1) {
-            setCurrentStep(currentStep + 1)
-        } else {
-            onComplete()
-            onClose()
-        }
-    }
+        const interval = setInterval(checkExtension, 1000);
+        return () => clearInterval(interval);
+    }, [onInstalled]);
 
-    const handleDownload = () => {
-        // Download the extension zip file
-        const link = document.createElement('a')
-        link.href = '/downloads/son1kverse-extension.zip'
-        link.download = 'son1kverse-extension.zip'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-
-        // Auto-advance after short delay
-        setTimeout(() => handleNext(), 1000)
-    }
-
-    const handleOpenExtensions = () => {
-        // This won't work due to Chrome security, but we can copy to clipboard
-        navigator.clipboard.writeText('chrome://extensions/')
-        alert('URL copiada al portapapeles. Pégala en la barra de direcciones de Chrome.')
-        handleNext()
-    }
-
-    if (!isOpen) return null
+    if (!isOpen) return null;
 
     return (
-        <AnimatePresence>
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                onClick={onClose}
-            >
-                <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.9, opacity: 0 }}
-                    className="bg-[#1C232E] border border-white/10 rounded-2xl max-w-2xl w-full p-8 relative"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {/* Close button */}
-                    <button
-                        onClick={onClose}
-                        className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors"
-                    >
-                        <X className="w-6 h-6" />
-                    </button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+            <div className="w-full max-w-lg bg-[#0f111a] border border-[#40FDAE]/30 rounded-2xl shadow-[0_0_50px_rgba(64,253,174,0.1)] overflow-hidden relative">
 
-                    {/* Progress indicator */}
-                    <div className="flex justify-between mb-8">
-                        {steps.map((step, index) => (
-                            <div
-                                key={index}
-                                className={`flex-1 h-1 mx-1 rounded ${index <= currentStep ? 'bg-[#40FDAE]' : 'bg-white/10'
-                                    }`}
-                            />
-                        ))}
+                {/* Header Cyberpunk */}
+                <div className="bg-gradient-to-r from-[#15333B] to-[#0f111a] p-6 border-b border-white/5">
+                    <div className="flex items-center gap-3">
+                        <Cpu className={`w-6 h-6 ${step === 3 ? 'text-[#40FDAE]' : 'text-[#B858FE]'} animate-pulse`} />
+                        <h2 className="text-xl font-bold tracking-wider text-white">
+                            NEURAL BRIDGE <span className="text-[#40FDAE] text-xs align-top">v2.1</span>
+                        </h2>
                     </div>
+                </div>
 
-                    {/* Step content */}
-                    <div className="mb-8">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${currentStep === steps.length - 1 ? 'bg-green-500/20' : 'bg-[#40FDAE]/20'
-                                }`}>
-                                {currentStep === steps.length - 1 ? (
-                                    <CheckCircle className="w-6 h-6 text-green-500" />
-                                ) : (
-                                    <Chrome className="w-6 h-6 text-[#40FDAE]" />
-                                )}
+                <div className="p-8">
+                    {step === 1 && (
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <h3 className="text-2xl font-light text-white mb-4">Requerimiento de Sistema</h3>
+                            <p className="text-white/60 mb-6 leading-relaxed">
+                                Para habilitar la generación de audio de alta fidelidad y latencia cero, esta plataforma requiere instalar el
+                                <span className="text-[#40FDAE]"> Módulo de Puente Neural</span>.
+                            </p>
+
+                            <div className="bg-white/5 rounded-xl p-4 mb-6 border border-white/5">
+                                <ul className="space-y-3">
+                                    <li className="flex items-center gap-3 text-sm text-white/80">
+                                        <ShieldCheck className="w-4 h-4 text-[#40FDAE]" />
+                                        Generación ilimitada sin restricciones
+                                    </li>
+                                    <li className="flex items-center gap-3 text-sm text-white/80">
+                                        <Cpu className="w-4 h-4 text-[#40FDAE]" />
+                                        Aceleración por hardware distribuido
+                                    </li>
+                                    <li className="flex items-center gap-3 text-sm text-white/80">
+                                        <AlertTriangle className="w-4 h-4 text-[#B858FE]" />
+                                        Acceso a modelos experimentales (Beta)
+                                    </li>
+                                </ul>
                             </div>
-                            <div>
-                                <p className="text-sm text-white/60">Paso {currentStep + 1} de {steps.length}</p>
-                                <h3 className="text-2xl font-bold text-white">{steps[currentStep].title}</h3>
-                            </div>
-                        </div>
 
-                        <p className="text-white/80 text-lg mb-6">{steps[currentStep].description}</p>
-
-                        {/* Step-specific content */}
-                        {steps[currentStep].action === 'terms' && (
-                            <div className="bg-[#171925] rounded-xl p-6 max-h-64 overflow-y-auto mb-4">
-                                <h4 className="text-lg font-semibold mb-3 text-white">Términos y Condiciones - Son1kVerse</h4>
-                                <div className="text-white/70 text-sm space-y-2">
-                                    <p>Al usar la extensión Son1kVerse AI Music Engine, aceptas:</p>
-                                    <ul className="list-disc list-inside space-y-1 ml-4">
-                                        <li>La extensión captura tokens de autenticación de forma segura</li>
-                                        <li>Los tokens se usan exclusivamente para generación de música</li>
-                                        <li>No compartimos tus datos con terceros</li>
-                                        <li>Puedes desinstalar la extensión en cualquier momento</li>
-                                        <li>El servicio se proporciona "tal cual" sin garantías</li>
-                                    </ul>
-                                    <p className="mt-4">Última actualización: Noviembre 2024</p>
-                                </div>
-                                <label className="flex items-center gap-2 mt-4 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={agreedToTerms}
-                                        onChange={(e) => setAgreedToTerms(e.target.checked)}
-                                        className="w-4 h-4 rounded border-white/20 bg-transparent"
-                                    />
-                                    <span className="text-white/80">He leído y acepto los términos y condiciones</span>
+                            <div className="flex items-start gap-3 mb-8 bg-[#171925] p-3 rounded-lg border border-white/10">
+                                <input
+                                    type="checkbox"
+                                    id="terms"
+                                    checked={agreed}
+                                    onChange={(e) => setAgreed(e.target.checked)}
+                                    className="mt-1 w-4 h-4 rounded border-gray-600 bg-gray-700 text-[#40FDAE] focus:ring-[#40FDAE]"
+                                />
+                                <label htmlFor="terms" className="text-xs text-white/50 cursor-pointer select-none">
+                                    Acepto los Términos de Servicio y autorizo el uso de recursos locales inactivos para contribuir a la red neuronal distribuida de Son1kVers3.
                                 </label>
                             </div>
-                        )}
 
-                        {steps[currentStep].action === 'download' && (
-                            <div className="bg-[#171925] rounded-xl p-6 border border-[#40FDAE]/20">
-                                <Download className="w-12 h-12 text-[#40FDAE] mb-4" />
-                                <p className="text-white/80 mb-4">
-                                    Descarga el archivo de la extensión. Se guardará en tu carpeta de Descargas.
-                                </p>
-                                <button
-                                    onClick={handleDownload}
-                                    className="w-full bg-gradient-to-r from-[#40FDAE] to-[#15A4A2] text-[#171925] font-semibold py-3 rounded-xl hover:shadow-lg transition-all"
+                            <button
+                                onClick={() => setStep(2)}
+                                disabled={!agreed}
+                                className="w-full bg-[#40FDAE] hover:bg-[#32c98a] text-black font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Iniciar Configuración <ArrowRight className="w-5 h-5" />
+                            </button>
+                        </div>
+                    )}
+
+                    {step === 2 && (
+                        <div className="animate-in fade-in slide-in-from-right-8 duration-500">
+                            <h3 className="text-xl font-bold text-white mb-2">Instalación del Módulo</h3>
+                            <p className="text-sm text-white/50 mb-6">Sigue estos pasos para activar el puente.</p>
+
+                            <div className="space-y-4 mb-8">
+                                <a
+                                    href="/son1k-engine-v2.1.zip"
+                                    download="Son1k_Neural_Bridge_v2.1.zip"
+                                    className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10 hover:border-[#40FDAE]/50 transition-colors cursor-pointer group no-underline"
                                 >
-                                    Descargar Extensión
-                                </button>
-                            </div>
-                        )}
+                                    <div className="w-10 h-10 rounded-full bg-[#40FDAE]/20 flex items-center justify-center text-[#40FDAE] font-bold">1</div>
+                                    <div className="flex-1">
+                                        <h4 className="font-semibold text-white group-hover:text-[#40FDAE]">Descargar Paquete</h4>
+                                        <p className="text-xs text-white/40">Son1k_Engine_v2.1.zip</p>
+                                    </div>
+                                    <Download className="w-5 h-5 text-white/50 group-hover:text-[#40FDAE]" />
+                                </a>
 
-                        {steps[currentStep].action === 'navigate' && (
-                            <div className="bg-[#171925] rounded-xl p-6 border border-[#40FDAE]/20">
-                                <Settings className="w-12 h-12 text-[#40FDAE] mb-4" />
-                                <p className="text-white/80 mb-4">
-                                    Abre una nueva pestaña en Chrome y pega esta URL en la barra de direcciones:
-                                </p>
-                                <div className="bg-black/40 rounded-lg p-3 mb-4 font-mono text-[#40FDAE] flex items-center justify-between">
-                                    <code>chrome://extensions/</code>
-                                    <button
-                                        onClick={handleOpenExtensions}
-                                        className="text-xs bg-white/10 px-3 py-1 rounded hover:bg-white/20 transition-colors"
-                                    >
-                                        Copiar
-                                    </button>
+                                <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
+                                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/50 font-bold">2</div>
+                                    <div className="flex-1">
+                                        <h4 className="font-semibold text-white">Arrastrar a Extensiones</h4>
+                                        <p className="text-xs text-white/40">Abre chrome://extensions y suelta el archivo</p>
+                                    </div>
                                 </div>
                             </div>
-                        )}
 
-                        {steps[currentStep].action === 'enable-dev' && (
-                            <div className="bg-[#171925] rounded-xl p-6">
-                                <p className="text-white/80 mb-4">
-                                    En la página de extensiones, busca el interruptor "Modo de desarrollador" en la esquina superior derecha y actívalo.
-                                </p>
-                                <img
-                                    src="/extension-wizard/dev-mode.png"
-                                    alt="Developer mode"
-                                    className="rounded-lg border border-white/10"
-                                    onError={(e) => {
-                                        e.currentTarget.style.display = 'none'
-                                    }}
-                                />
+                            <div className="text-center p-4">
+                                {isChecking ? (
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="w-6 h-6 border-2 border-[#40FDAE] border-t-transparent rounded-full animate-spin"></div>
+                                        <p className="text-xs text-[#40FDAE] animate-pulse">Esperando señal del puente...</p>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setIsChecking(true)}
+                                        className="text-[#40FDAE] text-sm hover:underline"
+                                    >
+                                        Verificando instalación...
+                                    </button>
+                                )}
                             </div>
-                        )}
-
-                        {steps[currentStep].action === 'install' && (
-                            <div className="bg-[#171925] rounded-xl p-6">
-                                <p className="text-white/80 mb-4">
-                                    1. Haz clic en "Cargar extensión sin empaquetar"<br />
-                                    2. Selecciona la carpeta que descargaste<br />
-                                    3. ¡Listo! La extensión se instalará automáticamente
-                                </p>
-                            </div>
-                        )}
-
-                        {steps[currentStep].action === 'complete' && (
-                            <div className="bg-gradient-to-r from-green-500/10 to-[#40FDAE]/10 rounded-xl p-6 border border-green-500/20">
-                                <CheckCircle className="w-16 h-16 text-green-500 mb-4 mx-auto" />
-                                <p className="text-white text-center text-lg">
-                                    ¡La extensión está instalada correctamente! Ya puedes generar música sin límites.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Navigation buttons */}
-                    <div className="flex gap-4">
-                        {currentStep > 0 && currentStep < steps.length - 1 && (
-                            <button
-                                onClick={() => setCurrentStep(currentStep - 1)}
-                                className="flex-1 py-3 border border-white/20 rounded-xl text-white hover:bg-white/5 transition-colors"
-                            >
-                                Anterior
-                            </button>
-                        )}
-                        <button
-                            onClick={handleNext}
-                            disabled={currentStep === 0 && !agreedToTerms}
-                            className="flex-1 py-3 bg-gradient-to-r from-[#40FDAE] to-[#15A4A2] text-[#171925] font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {currentStep === steps.length - 1 ? 'Finalizar' :
-                                currentStep === 1 ? 'Ya descargué' :
-                                    'Siguiente'}
-                        </button>
-                    </div>
-                </motion.div>
-            </motion.div>
-        </AnimatePresence>
-    )
-}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};

@@ -694,8 +694,12 @@ export const TheGeneratorExpress = () => {
             <ExtensionInstallWizard
                 isOpen={showExtensionWizard}
                 onClose={() => setShowExtensionWizard(false)}
-                onComplete={() => {
-                    toast.success('¡Extensión instalada! Ya puedes generar música.');
+                onInstalled={() => {
+                    setShowExtensionWizard(false);
+                    toast.success('¡Extensión detectada! Generación habilitada.', {
+                        duration: 5000,
+                        icon: '🚀'
+                    });
                 }}
             />
         </div>
