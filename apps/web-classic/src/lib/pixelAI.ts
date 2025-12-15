@@ -236,7 +236,7 @@ export class PixelAI {
         Authorization: `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'llama-3.1-70b-versatile',
+        model: 'llama-3.3-70b-versatile',
         messages: finalMessages,
         temperature: dynamicTemperature,
         max_tokens: 1500,
