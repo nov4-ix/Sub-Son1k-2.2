@@ -41,3 +41,4 @@ Thumbs.db
 SUPABASE_AUTH_CONFIGURED.md
 .env.production.local
 .vercel
+.env*.local
