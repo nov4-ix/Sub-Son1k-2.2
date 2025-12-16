@@ -7,16 +7,7 @@ import { MusicGenerationService } from './services/musicGenerationService';
 import { env } from './lib/config';
 
 const fastify = Fastify({
-  logger: {
-    level: 'info',
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        translateTime: 'HH:MM:ss Z',
-        ignore: 'pid,hostname'
-      }
-    }
-  }
+  logger: true  // Simple logger without pino-pretty
 });
 
 // Initialize services
