@@ -9,21 +9,19 @@ const fastify = Fastify({
   logger: true
 });
 
-// Initialize services
+// Initialize services globally
 let tokenManager: TokenManager;
 let musicGenerationService: MusicGenerationService;
 
 // Register plugins
 async function registerPlugins() {
-  // CORS - Allow requests from Vercel deployments and localhost
   await fastify.register(cors, {
     origin: [
       /^https:\/\/.*\.vercel\.app$/,
       'http://localhost:5173',
       'http://localhost:3000',
-      'http://localhost:4173',
-      process.env.FRONTEND_URL || ''
-    ].filter(Boolean),
+      'http://localhost:4173'
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
   });
@@ -36,8 +34,6 @@ async function registerPlugins() {
     max: 100,
     timeWindow: '1 minute'
   });
-
-  fastify.log.info('✅ Plugins registered');
 }
 
 // Health check
@@ -55,7 +51,6 @@ fastify.get('/health', async () => {
 // Generate music - Public endpoint
 fastify.post('/api/generation/create-public', async (request, reply) => {
   const body: any = request.body;
-  fastify.log.info('🎵 Generation request:', { prompt: body.prompt });
 
   if (!musicGenerationService) {
     return reply.status(503).send({
@@ -65,6 +60,8 @@ fastify.post('/api/generation/create-public', async (request, reply) => {
   }
 
   try {
+    fastify.log.info({ prompt: body.prompt }, 'Generation request received');
+
     const result = await musicGenerationService.generateMusic({
       prompt: body.prompt || 'Una canción instrumental',
       style: body.style || 'pop',
@@ -74,14 +71,14 @@ fastify.post('/api/generation/create-public', async (request, reply) => {
     });
 
     if (result.status === 'failed') {
-      fastify.log.error('Generation failed:', result.error);
+      fastify.log.error({ error: result.error }, 'Generation failed');
       return reply.status(500).send({
         success: false,
         error: result.error || 'Generation failed'
       });
     }
 
-    fastify.log.info('✅ Generation started:', result.generationTaskId);
+    fastify.log.info({ taskId: result.generationTaskId }, 'Generation started successfully');
 
     return reply.send({
       success: true,
@@ -91,7 +88,7 @@ fastify.post('/api/generation/create-public', async (request, reply) => {
       message: 'Generación iniciada exitosamente'
     });
   } catch (error: any) {
-    fastify.log.error('Generation error:', error);
+    fastify.log.error({ error: error.message }, 'Generation error');
     return reply.status(500).send({
       success: false,
       error: error.message || 'Internal server error'
@@ -106,7 +103,7 @@ fastify.post('/api/generate', async (request, reply) => {
   if (!musicGenerationService) {
     return reply.status(503).send({
       success: false,
-      error: 'Music generation service not initialized'
+      error: 'Service not available'
     });
   }
 
@@ -133,7 +130,7 @@ fastify.post('/api/generate', async (request, reply) => {
       estimatedTime: result.estimatedTime
     });
   } catch (error: any) {
-    fastify.log.error('Generation error:', error);
+    fastify.log.error(error);
     return reply.status(500).send({
       success: false,
       error: error.message
@@ -170,23 +167,24 @@ fastify.get('/api/generation/:taskId/status', async (request, reply) => {
 async function start() {
   try {
     await registerPlugins();
+    fastify.log.info('Plugins registered');
 
     // Initialize TokenManager
     const sunoTokens = process.env.SUNO_TOKENS?.split(',').filter(t => t.trim()) || [];
 
     if (sunoTokens.length === 0) {
-      fastify.log.warn('⚠️  No SUNO_TOKENS configured. Music generation will not work.');
-      fastify.log.warn('   Set SUNO_TOKENS environment variable with comma-separated tokens');
+      fastify.log.warn('⚠️  No SUNO_TOKENS configured');
+      fastify.log.warn('   Music generation will not work without tokens');
     } else {
-      fastify.log.info(`📝 Loaded ${sunoTokens.length} Suno token(s)`);
+      fastify.log.info(`Found ${sunoTokens.length} Suno token(s)`);
     }
 
     tokenManager = new TokenManager(sunoTokens);
-    fastify.log.info('✅ TokenManager initialized');
+    fastify.log.info('TokenManager initialized');
 
     // Initialize MusicGenerationService
     musicGenerationService = new MusicGenerationService(tokenManager);
-    fastify.log.info('✅ MusicGenerationService initialized');
+    fastify.log.info('MusicGenerationService initialized');
 
     // Start listening
     const port = parseInt(process.env.PORT || '3000', 10);
@@ -194,8 +192,8 @@ async function start() {
 
     await fastify.listen({ port, host });
 
-    fastify.log.info(`🚀 Server ready on ${host}:${port}`);
-    fastify.log.info(`🎵 Music Generation System: ${sunoTokens.length > 0 ? 'ACTIVE' : 'INACTIVE (no tokens)'}`);
+    fastify.log.info(`🚀 Server listening on ${host}:${port}`);
+    fastify.log.info(`🎵 Music Generation: ${sunoTokens.length > 0 ? 'ACTIVE' : 'INACTIVE'}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
