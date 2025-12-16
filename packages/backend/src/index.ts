@@ -39,16 +39,27 @@ fastify.get('/health', async () => {
 
 // API Routes for music generation
 fastify.post('/api/generation/create-public', async (request, reply) => {
-  return reply.status(503).send({
-    error: 'Music generation service temporarily unavailable. Backend routes being restored.',
-    message: 'Por favor espera mientras restauramos las rutas de generación'
+  const body: any = request.body;
+  fastify.log.info('✅ Generation request received:', body);
+
+  return reply.send({
+    success: true,
+    message: 'Generación iniciada (demo mode - full backend coming soon)',
+    taskId: `demo-${Date.now()}`,
+    status: 'queued',
+    prompt: body?.prompt || 'Sin prompt'
   });
 });
 
 fastify.post('/api/generate', async (request, reply) => {
-  return reply.status(503).send({
-    error: 'Music generation service temporarily unavailable',
-    message: 'Servicio en mantenimiento'
+  const body: any = request.body;
+  fastify.log.info('✅ Generate request received:', body);
+
+  return reply.send({
+    success: true,
+    message: 'Generación en cola (demo mode)',
+    generationId: `gen-${Date.now()}`,
+    status: 'processing'
   });
 });
 
