@@ -4,10 +4,9 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { TokenManager } from './services/tokenManager';
 import { MusicGenerationService } from './services/musicGenerationService';
-import { env } from './lib/config';
 
 const fastify = Fastify({
-  logger: true  // Simple logger without pino-pretty
+  logger: true
 });
 
 // Initialize services
@@ -19,28 +18,26 @@ async function registerPlugins() {
   // CORS - Allow requests from Vercel deployments and localhost
   await fastify.register(cors, {
     origin: [
-      /^https:\/\/.*\.vercel\.app$/,  // All Vercel domains
-      'http://localhost:5173',          // Local dev
-      'http://localhost:3000',          // Local dev  
-      'http://localhost:4173',          // Local preview
-      process.env.FRONTEND_URL || ''   // Custom domain if configured
+      /^https:\/\/.*\.vercel\.app$/,
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:4173',
+      process.env.FRONTEND_URL || ''
     ].filter(Boolean),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
   });
 
-  // Helmet for security headers
   await fastify.register(helmet, {
-    contentSecurityPolicy: false  // Disable for API
+    contentSecurityPolicy: false
   });
 
-  // Rate limiting
   await fastify.register(rateLimit, {
     max: 100,
     timeWindow: '1 minute'
   });
 
-  fastify.log.info('✅ Plugins registered successfully');
+  fastify.log.info('✅ Plugins registered');
 }
 
 // Health check
@@ -50,15 +47,16 @@ fastify.get('/health', async () => {
     timestamp: new Date().toISOString(),
     services: {
       musicGeneration: !!musicGenerationService,
-      tokenManager: !!tokenManager
+      tokenManager: !!tokenManager,
+      tokensAvailable: tokenManager?.getAvailableTokenCount() || 0
     }
   };
 });
 
-// API Routes for music generation
+// Generate music - Public endpoint
 fastify.post('/api/generation/create-public', async (request, reply) => {
   const body: any = request.body;
-  fastify.log.info('✅ Generation request received:', body);
+  fastify.log.info('🎵 Generation request:', { prompt: body.prompt });
 
   if (!musicGenerationService) {
     return reply.status(503).send({
@@ -69,19 +67,22 @@ fastify.post('/api/generation/create-public', async (request, reply) => {
 
   try {
     const result = await musicGenerationService.generateMusic({
-      prompt: body.prompt,
+      prompt: body.prompt || 'Una canción instrumental',
       style: body.style || 'pop',
       duration: body.duration || 60,
       quality: body.quality || 'standard',
-      userId: 'public-user' // For public generations
+      userId: 'public-user'
     });
 
     if (result.status === 'failed') {
+      fastify.log.error('Generation failed:', result.error);
       return reply.status(500).send({
         success: false,
         error: result.error || 'Generation failed'
       });
     }
+
+    fastify.log.info('✅ Generation started:', result.generationTaskId);
 
     return reply.send({
       success: true,
@@ -99,9 +100,9 @@ fastify.post('/api/generation/create-public', async (request, reply) => {
   }
 });
 
+// Alternative generate endpoint
 fastify.post('/api/generate', async (request, reply) => {
   const body: any = request.body;
-  fastify.log.info('✅ Generate request received:', body);
 
   if (!musicGenerationService) {
     return reply.status(503).send({
@@ -122,7 +123,7 @@ fastify.post('/api/generate', async (request, reply) => {
     if (result.status === 'failed') {
       return reply.status(500).send({
         success: false,
-        error: result.error || 'Generation failed'
+        error: result.error
       });
     }
 
@@ -136,7 +137,7 @@ fastify.post('/api/generate', async (request, reply) => {
     fastify.log.error('Generation error:', error);
     return reply.status(500).send({
       success: false,
-      error: error.message || 'Internal server error'
+      error: error.message
     });
   }
 });
@@ -148,24 +149,20 @@ fastify.get('/api/generation/:taskId/status', async (request, reply) => {
   if (!musicGenerationService) {
     return reply.status(503).send({
       success: false,
-      error: 'Music generation service not initialized'
+      error: 'Service not available'
     });
   }
 
   try {
-    // This would need to be implemented in the service
-    // For now, return a placeholder
+    const status = await musicGenerationService.getGenerationStatus(taskId);
     return reply.send({
       success: true,
-      taskId,
-      status: 'processing',
-      progress: 50
+      ...status
     });
   } catch (error: any) {
-    fastify.log.error('Status check error:', error);
     return reply.status(500).send({
       success: false,
-      error: error.message || 'Internal server error'
+      error: error.message
     });
   }
 });
@@ -173,16 +170,16 @@ fastify.get('/api/generation/:taskId/status', async (request, reply) => {
 // Start server
 async function start() {
   try {
-    // Register plugins first
     await registerPlugins();
 
     // Initialize TokenManager
     const sunoTokens = process.env.SUNO_TOKENS?.split(',').filter(t => t.trim()) || [];
 
     if (sunoTokens.length === 0) {
-      fastify.log.warn('⚠️  No SUNO_TOKENS found in environment');
+      fastify.log.warn('⚠️  No SUNO_TOKENS configured. Music generation will not work.');
+      fastify.log.warn('   Set SUNO_TOKENS environment variable with comma-separated tokens');
     } else {
-      fastify.log.info(`📝 Found ${sunoTokens.length} Suno tokens`);
+      fastify.log.info(`📝 Loaded ${sunoTokens.length} Suno token(s)`);
     }
 
     tokenManager = new TokenManager(sunoTokens);
@@ -198,8 +195,8 @@ async function start() {
 
     await fastify.listen({ port, host });
 
-    fastify.log.info(`🚀 Server listening on ${host}:${port}`);
-    fastify.log.info(`🎵 Music Generation System: READY`);
+    fastify.log.info(`🚀 Server ready on ${host}:${port}`);
+    fastify.log.info(`🎵 Music Generation System: ${sunoTokens.length > 0 ? 'ACTIVE' : 'INACTIVE (no tokens)'}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
