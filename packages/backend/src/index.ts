@@ -47,8 +47,7 @@ fastify.get('/health', async () => {
     timestamp: new Date().toISOString(),
     services: {
       musicGeneration: !!musicGenerationService,
-      tokenManager: !!tokenManager,
-      tokensAvailable: tokenManager?.getAvailableTokenCount() || 0
+      tokenManager: !!tokenManager
     }
   };
 });
