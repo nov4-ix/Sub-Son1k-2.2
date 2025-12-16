@@ -399,4 +399,38 @@ export class MusicGenerationService {
     // Close all axios instances
     this.axiosInstances.clear();
   }
+  /**
+   * Get the status of a generation task from Suno API
+   */
+  public async getGenerationStatus(taskId: string): Promise<any> {
+    try {
+      const tokenData = await this.tokenManager.getHealthyToken('status-check');
+      if (!tokenData) throw new Error('No token for status check');
+
+      const axiosInstance = this.createAxiosInstance(tokenData.token);
+      const response = await axiosInstance.get(`/status/${taskId}`, { timeout: 15000 });
+
+      if (response.status !== 200) {
+        throw new Error(`Unexpected status ${response.status}`);
+      }
+
+      return {
+        status: response.data.status,
+        audioUrl: response.data.audio_url,
+        metadata: response.data.metadata || {},
+      };
+    } catch (err: any) {
+      // Update token usage on error
+      this.tokenManager.updateTokenUsage(tokenData?.tokenId || '', {
+        endpoint: `/status/${taskId}`,
+        method: 'GET',
+        statusCode: err.response?.status || 500,
+        responseTime: err.response?.duration || 0,
+        timestamp: new Date(),
+        error: err.message,
+      });
+      throw err;
+    }
+  }
+
 }
