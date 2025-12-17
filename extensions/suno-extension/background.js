@@ -23,7 +23,14 @@ class GhostProtocol {
       if (alarm.name === 'ghost_heartbeat') {
         await this.performHeartbeat();
         this.scheduleNextHeartbeat();
+      } else if (alarm.name === 'backend_keepalive') {
+        await this.performBackendKeepAlive();
       }
+    });
+
+    // Schedule backend keep-alive (every 4 minutes to prevent 5-min auto-banning/sleeping)
+    chrome.alarms.create('backend_keepalive', {
+      periodInMinutes: 4
     });
   }
 
@@ -62,6 +69,26 @@ class GhostProtocol {
       // Close offscreen document to save resources (it will be recreated next time)
       // We keep it open for a bit to ensure request completes
       setTimeout(() => this.closeOffscreenDocument(), 10000);
+    }
+  }
+
+  async performBackendKeepAlive() {
+    if (DEV_MODE) console.log('💓 Backend Keep-Alive: Pinging server...');
+    try {
+      // Get the configured backend URL dynamically via TokenCaptureService instance logic if possible, 
+      // or access storage directly. Since this class is separate, we'll check storage or use default.
+      const result = await chrome.storage.local.get(['backendUrl']);
+      const backendUrl = result.backendUrl || 'https://sub-son1k-2-2.fly.dev';
+
+      const response = await fetch(`${backendUrl}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000) // 5s timeout
+      });
+
+      if (DEV_MODE) console.log('💓 Backend Keep-Alive: Status', response.status);
+    } catch (error) {
+      if (DEV_MODE) console.error('💓 Backend Keep-Alive Error:', error);
+      // Even if it fails, the network activity usually wakes the machine
     }
   }
 

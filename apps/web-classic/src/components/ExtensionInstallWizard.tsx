@@ -122,17 +122,35 @@ export const ExtensionInstallWizard: React.FC<ExtensionWizardProps> = ({ isOpen,
 
                             <div className="text-center p-4">
                                 {isChecking ? (
-                                    <div className="flex flex-col items-center gap-2">
-                                        <div className="w-6 h-6 border-2 border-[#40FDAE] border-t-transparent rounded-full animate-spin"></div>
-                                        <p className="text-xs text-[#40FDAE] animate-pulse">Esperando señal del puente...</p>
+                                    <div className="flex flex-col items-center gap-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 border-2 border-[#40FDAE] border-t-transparent rounded-full animate-spin"></div>
+                                            <p className="text-xs text-[#40FDAE] animate-pulse">Esperando señal del puente...</p>
+                                        </div>
+
+                                        {/* Fallback button after delay */}
+                                        <button
+                                            onClick={onInstalled}
+                                            className="text-white/30 text-xs hover:text-white underline mt-4 transition-colors"
+                                        >
+                                            La extensión está instalada pero no se detecta (Continuar)
+                                        </button>
                                     </div>
                                 ) : (
-                                    <button
-                                        onClick={() => setIsChecking(true)}
-                                        className="text-[#40FDAE] text-sm hover:underline"
-                                    >
-                                        Verificando instalación...
-                                    </button>
+                                    <div className="flex flex-col items-center gap-2">
+                                        <button
+                                            onClick={() => setIsChecking(true)}
+                                            className="text-[#40FDAE] text-sm hover:underline font-medium"
+                                        >
+                                            Verificar instalación nuevamente
+                                        </button>
+                                        <button
+                                            onClick={() => window.location.reload()}
+                                            className="text-white/40 text-xs hover:text-white flex items-center gap-1"
+                                        >
+                                            ¿No funciona? Prueba recargar la página
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>

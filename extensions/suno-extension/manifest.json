@@ -19,7 +19,9 @@
     "https://studio-api.prod.suno.com/*",
     "https://*.super-son1k.com/*",
     "https://sub-son1k-2-2.fly.dev/*",
-    "https://web-classic.vercel.app/*"
+    "https://web-classic.vercel.app/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -39,7 +41,9 @@
     {
       "matches": [
         "https://*.super-son1k.com/*",
-        "https://web-classic.vercel.app/*"
+        "https://web-classic.vercel.app/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
       ],
       "js": [
         "content-son1k.js"
