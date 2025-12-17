@@ -5,6 +5,9 @@ import rateLimit from '@fastify/rate-limit';
 import { PrismaClient } from '@prisma/client';
 import { TokenManager } from './services/tokenManager';
 import { MusicGenerationService } from './services/musicGenerationService';
+import { TokenPoolService } from './services/tokenPoolService';
+import { tokenRoutes } from './routes/tokens';
+import { startGenerationWorker } from './workers/generation.worker';
 
 const fastify = Fastify({
   logger: true,
@@ -12,6 +15,7 @@ const fastify = Fastify({
 
 // Global service instances
 let tokenManager: TokenManager;
+let tokenPoolService: TokenPoolService;
 let musicGenerationService: MusicGenerationService;
 
 // Register plugins (CORS, Helmet, Rate limiting)
@@ -178,11 +182,20 @@ async function start() {
 
     // Initialise Prisma and TokenManager
     const prisma = new PrismaClient();
-    tokenManager = new TokenManager(prisma, sunoTokens);
+    tokenManager = new TokenManager(prisma); // Removed sunoTokens argument as per constructor signature in TokenManager.ts (step 290 view_file shows it only takes prisma)
     fastify.log.info('TokenManager initialized');
 
+    // Initialise TokenPoolService
+    tokenPoolService = new TokenPoolService(prisma, tokenManager);
+    await tokenPoolService.initialize();
+    fastify.log.info('TokenPoolService initialized');
+
+    // Register Token Routes
+    await fastify.register(tokenRoutes(tokenManager, tokenPoolService), { prefix: '/api/tokens' });
+    fastify.log.info('Token Routes registered');
+
     // Initialise MusicGenerationService
-    musicGenerationService = new MusicGenerationService(tokenManager);
+    musicGenerationService = new MusicGenerationService(tokenManager, tokenPoolService);
     fastify.log.info('MusicGenerationService initialized');
 
     const port = parseInt(process.env.PORT || '3000', 10);

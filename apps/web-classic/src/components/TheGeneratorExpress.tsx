@@ -63,13 +63,11 @@ export const TheGeneratorExpress = () => {
                 throw new Error(`Error del servidor: ${errorText}`);
             }
 
-            const clips = await response.json();
+            const data = await response.json();
 
-            if (!clips || clips.length === 0) throw new Error('No se iniciaron clips de generación');
+            if (!data.success || !data.generationId) throw new Error('No se iniciaron clips de generación');
 
-            // Suno usually returns 2 clips. We track them by ID.
-            const clipIds = clips.map((c: any) => c.id);
-            const primaryClipId = clipIds[0];
+            const primaryClipId = data.generationId;
 
             setGenerationMessage('Generando audio (esto toma unos segundos)...');
             pollTrackStatus(primaryClipId);
@@ -107,24 +105,25 @@ export const TheGeneratorExpress = () => {
 
             try {
                 // Use the new Robust API getter
-                const response = await fetch(`${BACKEND_URL}/api/get?ids=${clipId}`);
+                const response = await fetch(`${BACKEND_URL}/api/generation/${clipId}/status`);
 
                 if (response.ok) {
-                    const clips = await response.json();
-                    const clip = clips[0];
+                    const data = await response.json();
 
-                    if (clip) {
+                    if (data.success) {
                         // Check for completion or error
-                        if (clip.status === 'complete' || clip.status === 'streaming') {
-                            if (clip.audio_url) {
-                                setTrackUrl(clip.audio_url);
+                        // Map backend status 'completed' to frontend expectations if needed, 
+                        // or just use backend status directly.
+                        if (data.status === 'completed' || data.status === 'complete') {
+                            if (data.audioUrl || data.audio_url) {
+                                setTrackUrl(data.audioUrl || data.audio_url);
                                 setIsGenerating(false);
                                 setGenerationMessage('¡Canción generada!');
                                 toast.success('¡Tu canción está lista!');
                                 return;
                             }
-                        } else if (clip.status === 'error') {
-                            throw new Error(clip.error_message || 'La generación falló');
+                        } else if (data.status === 'failed' || data.status === 'error') {
+                            throw new Error(data.error || 'La generación falló');
                         }
                     }
                 }

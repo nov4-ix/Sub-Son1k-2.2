@@ -33,8 +33,152 @@ model User {
   generationAnalytics GenerationAnalytics[]
   requestAnalytics RequestAnalytics[]
   extensionUsage ExtensionUsage[]
+  credits       UserCredits?
+  queueItems    GenerationQueue[]
 
   @@map("users")
+}
+
+model UserCredits {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+  
+  // Credit System
+  totalCredits      Int      @default(100)  // Starting credits
+  usedCredits       Int      @default(0)
+  bonusCredits      Int      @default(0)    // From achievements
+  
+  // Boost System (tiempo de generación)
+  boostMinutes      Int      @default(60)   // Minutos de boost disponibles
+  boostRefreshRate  Int      @default(5)    // Minutos que regenera por hora
+  maxBoostCapacity  Int      @default(120)  // Límite máximo
+  lastBoostRefresh  DateTime @default(now())
+  
+  // Gamification
+  streak            Int      @default(0)    // Días consecutivos
+  level             Int      @default(1)    // Nivel de usuario
+  xp                Int      @default(0)    // Puntos de experiencia
+  
+  // Tracking
+  earnedBy          Json     @default("[]") // ["daily_login", "referral"]
+  spentOn           Json     @default("[]") // ["generation", "cover"]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([userId])
+  @@map("user_credits")
+}
+
+model TokenPool {
+  id                String   @id @default(cuid())
+  
+  // Token Info
+  token             String   @unique
+  encryptedToken    String   // Encrypted version
+  source            String   // 'manual', 'extension', 'partner'
+  
+  // Health & Performance
+  isActive          Boolean  @default(true)
+  healthScore       Float    @default(100)  // 0-100
+  lastUsed          DateTime?
+  lastHealthCheck   DateTime @default(now())
+  failureCount      Int      @default(0)
+  successCount      Int      @default(0)
+  avgResponseTime   Float    @default(0)
+  
+  // Limits & Quotas
+  dailyLimit        Int      @default(50)
+  currentDailyUsage Int      @default(0)
+  resetAt           DateTime
+  
+  // Priority & Tier
+  priority          Int      @default(0)    // Higher = better token
+  tier              String   @default("free") // free, pro, enterprise
+  dedicatedToUser   String?  // For enterprise users
+  
+  // Partner Info (if applicable)
+  partnerId         String?
+  partner           TokenPartner? @relation(fields: [partnerId], references: [id])
+  generationQueue   GenerationQueue[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([isActive, healthScore])
+  @@index([tier, priority])
+  @@map("token_pool")
+}
+
+model TokenPartner {
+  id                String   @id @default(cuid())
+  name              String
+  type              String   // 'sponsor', 'community', 'enterprise'
+  
+  // Contribution
+  tokensContributed Int      @default(0)
+  tokensActive      Int      @default(0)
+  
+  // Revenue Share
+  revenueShare      Float    @default(0)
+  totalEarned       Float    @default(0)
+  
+  // Branding
+  brandingAllowed   Boolean  @default(false)
+  logoUrl           String?
+  websiteUrl        String?
+  
+  // Analytics
+  totalGenerations  Int      @default(0)
+  analytics         Json     @default("{}")
+  
+  tokens            TokenPool[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("token_partners")
+}
+
+model GenerationQueue {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  
+  // Queue Info
+  position          Int
+  priority          Int      @default(0)    // Higher = faster
+  estimatedWaitTime Int      // in seconds
+  
+  // Generation Details
+  prompt            String
+  type              String   // 'song', 'cover', 'lyrics'
+  parameters        Json
+  
+  // Status
+  status            String   @default("queued") // queued, processing, completed, failed
+  startedAt         DateTime?
+  completedAt       DateTime?
+  
+  // Token Used
+  tokenId           String?
+  tokenPool         TokenPool? @relation(fields: [tokenId], references: [id])
+  
+  // Credits
+  creditsUsed       Int      @default(0)
+  boostMinutesUsed  Int      @default(0)
+  
+  // Result
+  result            Json?
+  error             String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([userId, status])
+  @@index([status, priority, createdAt])
+  @@map("generation_queue")
 }
 
 model UserTier {

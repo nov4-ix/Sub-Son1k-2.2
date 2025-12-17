@@ -461,7 +461,10 @@ export class TokenManager extends EventEmitter {
     };
 
     if (userId) {
-      where.userId = userId;
+      where.OR = [
+        { userId: userId },
+        { userId: null }
+      ];
     }
 
     const tokens = await this.prisma.token.findMany({

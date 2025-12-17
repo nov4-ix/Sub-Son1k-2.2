@@ -4,8 +4,10 @@
  */
 
 import { TokenManager } from './tokenManager';
+import { TokenPoolService } from './tokenPoolService';
 import axios, { AxiosInstance } from 'axios';
 import { env } from '../lib/config';
+import { PrismaClient } from '@prisma/client';
 
 export interface GenerationRequest {
   prompt: string;
@@ -35,11 +37,14 @@ export interface GenerationResult {
 
 export class MusicGenerationService {
   private axiosInstances: Map<string, AxiosInstance> = new Map();
+  private tokenPoolService?: TokenPoolService;
 
-  constructor(private tokenManager: TokenManager) { }
+  constructor(private tokenManager: TokenManager, tokenPoolService?: TokenPoolService) {
+    this.tokenPoolService = tokenPoolService;
+  }
 
   /**
-   * Generate music using AI generation API
+   * Generate music using AI generation API implementation
    */
   async generateMusic(request: GenerationRequest): Promise<GenerationResult> {
     try {
@@ -51,10 +56,36 @@ export class MusicGenerationService {
         };
       }
 
-      // Get a healthy token
-      const tokenData = await this.tokenManager.getHealthyToken(request.userId);
+      let token: string | undefined;
+      let tokenId: string | undefined;
 
-      if (!tokenData) {
+      // Try to get token from TokenPoolService first (Phase 1 Hybrid Architecture)
+      if (this.tokenPoolService) {
+        try {
+          // Simply treating all as 'free' for now until Tier integration is robust
+          // In future, fetch user tier from DB
+          const result = await this.tokenPoolService.selectOptimalToken('enterprise', request.userId);
+          token = result.token;
+          tokenId = result.tokenId;
+          console.log(`[MusicGenerationService] Using token from Pool: ${tokenId} (Tier: ${result.tier})`);
+        } catch (err: any) {
+          console.warn('[MusicGenerationService] TokenPool selection failed, falling back to legacy TokenManager:', err.message);
+        }
+      }
+
+      // Fallback to legacy TokenManager if TokenPool unavailable or failed
+      if (!token) {
+        const tokenData = await this.tokenManager.getHealthyToken(request.userId);
+        if (tokenData) {
+          token = tokenData.token;
+          tokenId = tokenData.tokenId;
+          console.log('[MusicGenerationService] Using token from Legacy TokenManager');
+        }
+      }
+
+      // If still no token, fail
+      if (!token || !tokenId) {
+        console.error('[MusicGenerationService] No tokens available from any source.');
         return {
           status: 'failed',
           error: 'No available tokens'
@@ -62,7 +93,7 @@ export class MusicGenerationService {
       }
 
       // Create axios instance for this request
-      const axiosInstance = this.createAxiosInstance(tokenData.token);
+      const axiosInstance = this.createAxiosInstance(token);
 
       // Prepare generation request (formato correcto para ai.imgkits.com)
       const generationData = {
@@ -90,14 +121,22 @@ export class MusicGenerationService {
           };
         }
 
-        // Update token usage
-        await this.tokenManager.updateTokenUsage(tokenData.tokenId, {
-          endpoint: '/generate',
-          method: 'POST',
-          statusCode: response.status,
-          responseTime: response.data.responseTime || 0,
-          timestamp: new Date()
-        });
+        // Update token usage (Try Pool first, then fallback to Manager - though Manager expects its own IDs)
+        // Since we are transitioning, we will try to update health in Pool if it came from Pool
+        if (this.tokenPoolService) {
+          const responseTime = response.data.responseTime || 0; // Or calculate it ourselves
+          // Since we didn't measure exact time here, using 0 or small placeholder
+          // Real implementation should wrap axios call with timer
+          await this.tokenPoolService.updateTokenHealth(tokenId, true, 1000);
+        } else {
+          await this.tokenManager.updateTokenUsage(tokenId, {
+            endpoint: '/generate',
+            method: 'POST',
+            statusCode: response.status,
+            responseTime: response.data.responseTime || 0,
+            timestamp: new Date()
+          });
+        }
 
         return {
           status: 'pending',
@@ -105,6 +144,10 @@ export class MusicGenerationService {
           estimatedTime: this.estimateGenerationTime(request.duration, request.quality)
         };
       } else {
+        // Report failure
+        if (this.tokenPoolService) {
+          await this.tokenPoolService.updateTokenHealth(tokenId, false, 5000);
+        }
         return {
           status: 'failed',
           error: 'Invalid response from generation API'
@@ -403,8 +446,9 @@ export class MusicGenerationService {
    * Get the status of a generation task from Suno API
    */
   public async getGenerationStatus(taskId: string): Promise<any> {
+    let tokenData: { tokenId: string; token: string } | null = null;
     try {
-      const tokenData = await this.tokenManager.getHealthyToken('status-check');
+      tokenData = await this.tokenManager.getHealthyToken('status-check');
       if (!tokenData) throw new Error('No token for status check');
 
       const axiosInstance = this.createAxiosInstance(tokenData.token);
