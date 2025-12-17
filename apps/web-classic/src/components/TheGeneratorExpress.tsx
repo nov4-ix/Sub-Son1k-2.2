@@ -7,6 +7,7 @@ import { ExtensionInstallWizard } from './ExtensionInstallWizard';
 export const TheGeneratorExpress = () => {
     const [prompt, setPrompt] = useState('');
     const [voiceType, setVoiceType] = useState<'male' | 'female' | null>(null);
+    const [isInstrumental, setIsInstrumental] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generationMessage, setGenerationMessage] = useState('');
     const [trackUrl, setTrackUrl] = useState<string | null>(null);
@@ -47,7 +48,8 @@ export const TheGeneratorExpress = () => {
                 },
                 body: JSON.stringify({
                     prompt: finalPrompt,
-                    make_instrumental: false,
+                    prompt: finalPrompt,
+                    make_instrumental: isInstrumental,
                     wait_audio: false
                 })
             });
@@ -239,6 +241,27 @@ export const TheGeneratorExpress = () => {
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                             ></textarea>
+                        </div>
+
+                        <div className="mb-6 flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10">
+                            <div className="flex items-center gap-3">
+                                <span className="p-2 bg-[#B858FE]/20 rounded-lg text-[#B858FE]">
+                                    <Music className="w-5 h-5" />
+                                </span>
+                                <div>
+                                    <h4 className="font-medium text-white">Instrumental</h4>
+                                    <p className="text-xs text-white/50">Generar canción sin letra</p>
+                                </div>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={isInstrumental}
+                                    onChange={(e) => setIsInstrumental(e.target.checked)}
+                                />
+                                <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#B858FE]"></div>
+                            </label>
                         </div>
 
                         <div className="mb-6">

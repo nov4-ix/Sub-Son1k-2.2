@@ -129,11 +129,12 @@ export const ExtensionInstallWizard: React.FC<ExtensionWizardProps> = ({ isOpen,
                                         </div>
 
                                         {/* Fallback button after delay */}
+                                        {/* Fallback button after delay */}
                                         <button
                                             onClick={onInstalled}
-                                            className="text-white/30 text-xs hover:text-white underline mt-4 transition-colors"
+                                            className="bg-[#1C232E] border border-white/20 text-white text-sm px-4 py-2 rounded-lg hover:bg-white/10 transition-colors mt-4 w-full"
                                         >
-                                            La extensión está instalada pero no se detecta (Continuar)
+                                            La extensión está instalada (Continuar)
                                         </button>
                                     </div>
                                 ) : (
