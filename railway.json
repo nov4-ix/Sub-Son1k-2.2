@@ -1,8 +1,8 @@
 {
     "$schema": "https://railway.app/railway.schema.json",
     "build": {
-        "builder": "NIXPACKS",
-        "buildCommand": "npx pnpm install --filter backend --include-workspace-root && cd packages/backend && npx prisma generate && npx tsc"
+        "builder": "DOCKERFILE",
+        "dockerfilePath": "Dockerfile.backend"
     },
     "deploy": {
         "startCommand": "cd packages/backend && node dist/index.js",
