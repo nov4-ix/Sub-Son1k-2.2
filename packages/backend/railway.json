@@ -2,7 +2,7 @@
     "$schema": "https://railway.app/railway.schema.json",
     "build": {
         "builder": "NIXPACKS",
-        "buildCommand": "npm install -g pnpm && pnpm install --filter backend --include-workspace-root && npx prisma generate && pnpm run build"
+        "buildCommand": "npx pnpm install --filter backend --include-workspace-root && npx prisma generate && npx tsc"
     },
     "deploy": {
         "startCommand": "node dist/index.js",
