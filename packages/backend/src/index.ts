@@ -8,6 +8,7 @@ import { CreditService } from './services/creditService';
 import { MusicGenerationService } from './services/musicGenerationService';
 import { TokenPoolService } from './services/tokenPoolService';
 import { tokenRoutes } from './routes/tokens';
+import { audioEngineRoutes } from './routes/audioEngine';
 import { startGenerationWorker } from './workers/generation.worker';
 
 const fastify = Fastify({
@@ -222,6 +223,10 @@ async function start() {
     // Register Token Routes
     await fastify.register(tokenRoutes(tokenManager, tokenPoolService), { prefix: '/api/tokens' });
     fastify.log.info('Token Routes registered');
+
+    // Register Audio Engine Routes (for extension)
+    await fastify.register(audioEngineRoutes);
+    fastify.log.info('Audio Engine Routes registered');
 
     // Initialise CreditService
     creditService = new CreditService(prisma);
