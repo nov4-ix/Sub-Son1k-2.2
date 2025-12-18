@@ -8,13 +8,40 @@ export const TheGeneratorExpress = () => {
     const [prompt, setPrompt] = useState('');
     const [voiceType, setVoiceType] = useState<'male' | 'female' | null>(null);
     const [isInstrumental, setIsInstrumental] = useState(false);
+    const [isBoostEnabled, setIsBoostEnabled] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generationMessage, setGenerationMessage] = useState('');
     const [trackUrl, setTrackUrl] = useState<string | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [duration, setDuration] = useState(0);
+    const [credits, setCredits] = useState<number | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
     const [showExtensionWizard, setShowExtensionWizard] = useState(false);
+
+    // Initialize User & Credits
+    useEffect(() => {
+        let storedUserId = localStorage.getItem('son1k_user_id');
+        if (!storedUserId) {
+            storedUserId = 'user_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('son1k_user_id', storedUserId);
+        }
+        setUserId(storedUserId);
+        fetchCredits(storedUserId);
+    }, []);
+
+    const fetchCredits = async (uid: string) => {
+        try {
+            const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://sub-son1k-2-2.fly.dev';
+            const res = await fetch(`${BACKEND_URL}/api/credits/${uid}`);
+            const data = await res.json();
+            if (data.success && data.credits) {
+                setCredits(data.credits.totalCredits - data.credits.usedCredits);
+            }
+        } catch (e) {
+            console.error('Error fetching credits', e);
+        }
+    };
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -47,9 +74,10 @@ export const TheGeneratorExpress = () => {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    prompt: finalPrompt,
+                    userId: userId, // Send User ID for credits
                     prompt: finalPrompt,
                     make_instrumental: isInstrumental,
+                    boost: isBoostEnabled, // Send Boost flag
                     wait_audio: false
                 })
             });
@@ -70,6 +98,7 @@ export const TheGeneratorExpress = () => {
             const primaryClipId = data.generationId;
 
             setGenerationMessage('Generando audio (esto toma unos segundos)...');
+            if (userId) fetchCredits(userId); // Refresh credits
             pollTrackStatus(primaryClipId);
 
         } catch (error: any) {
@@ -206,6 +235,15 @@ export const TheGeneratorExpress = () => {
 
                         {/* Actions - Minimal & Professional */}
                         <div className="flex items-center gap-4">
+                            {credits !== null && (
+                                <div className="hidden md:flex flex-col items-end mr-2 animate-in fade-in">
+                                    <div className="text-xs text-white/40 font-mono tracking-wider">BALANCE</div>
+                                    <div className="text-[#40FDAE] font-bold flex items-center gap-1">
+                                        <Sparkles className="w-3 h-3" />
+                                        {credits} CR
+                                    </div>
+                                </div>
+                            )}
                             <button className="text-[13px] text-white/60 hover:text-white uppercase tracking-wider font-light transition-colors px-4 py-2">
                                 Sign In
                             </button>
@@ -258,6 +296,30 @@ export const TheGeneratorExpress = () => {
                                     className="sr-only peer"
                                     checked={isInstrumental}
                                     onChange={(e) => setIsInstrumental(e.target.checked)}
+                                />
+                                <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#B858FE]"></div>
+                            </label>
+                        </div>
+
+                        <div className="mb-6 flex items-center justify-between bg-gradient-to-r from-[#B858FE]/10 to-[#047AF6]/10 p-4 rounded-xl border border-[#B858FE]/20">
+                            <div className="flex items-center gap-3">
+                                <span className="p-2 bg-[#B858FE]/20 rounded-lg text-[#B858FE]">
+                                    <Sparkles className="w-5 h-5" />
+                                </span>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="font-medium text-white">Boost Mode</h4>
+                                        <span className="text-[10px] font-bold bg-[#B858FE] text-white px-1.5 py-0.5 rounded">FAST</span>
+                                    </div>
+                                    <p className="text-xs text-white/50">Prioridad en cola (Consume Boost Min)</p>
+                                </div>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={isBoostEnabled}
+                                    onChange={(e) => setIsBoostEnabled(e.target.checked)}
                                 />
                                 <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#B858FE]"></div>
                             </label>

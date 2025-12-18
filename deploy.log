@@ -1,4 +1,0 @@
-Vercel CLI 49.1.2
-Retrieving project…
-Deploying son1kvers3s-projects-c805d053/web-classic
-Error: Environment Variable "NEXT_PUBLIC_SUPABASE_URL" references Secret "supabase_url", which does not exist.

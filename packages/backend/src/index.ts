@@ -4,6 +4,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { PrismaClient } from '@prisma/client';
 import { TokenManager } from './services/tokenManager';
+import { CreditService } from './services/creditService';
 import { MusicGenerationService } from './services/musicGenerationService';
 import { TokenPoolService } from './services/tokenPoolService';
 import { tokenRoutes } from './routes/tokens';
@@ -15,6 +16,7 @@ const fastify = Fastify({
 
 // Global service instances
 let tokenManager: TokenManager;
+let creditService: CreditService;
 let tokenPoolService: TokenPoolService;
 let musicGenerationService: MusicGenerationService;
 
@@ -23,6 +25,8 @@ async function registerPlugins() {
   await fastify.register(cors, {
     origin: [
       /^https:\/\/.*\.vercel\.app$/,
+      'https://www.son1kvers3.com',
+      'https://ghost-studio-lovat.vercel.app',
       'http://localhost:5173',
       'http://localhost:3000',
       'http://localhost:4173',
@@ -166,6 +170,31 @@ fastify.get('/api/generation/:taskId/status', async (request, reply) => {
   }
 });
 
+// Credits endpoint
+fastify.get('/api/credits/:userId', async (request, reply) => {
+  const { userId } = request.params as { userId: string };
+
+  if (!creditService) {
+    return reply.status(503).send({
+      success: false,
+      error: 'Service not available',
+    });
+  }
+
+  try {
+    const credits = await creditService.getUserCredits(userId);
+    return reply.send({
+      success: true,
+      credits,
+    });
+  } catch (err: any) {
+    return reply.status(500).send({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
 // Server start
 async function start() {
   try {
@@ -194,9 +223,17 @@ async function start() {
     await fastify.register(tokenRoutes(tokenManager, tokenPoolService), { prefix: '/api/tokens' });
     fastify.log.info('Token Routes registered');
 
+    // Initialise CreditService
+    creditService = new CreditService(prisma);
+    fastify.log.info('CreditService initialized');
+
     // Initialise MusicGenerationService
-    musicGenerationService = new MusicGenerationService(tokenManager, tokenPoolService);
+    musicGenerationService = new MusicGenerationService(tokenManager, tokenPoolService, prisma, creditService);
     fastify.log.info('MusicGenerationService initialized');
+
+    // Start Generation Worker (BullMQ)
+    startGenerationWorker();
+    fastify.log.info('Generation Worker started');
 
     const port = parseInt(process.env.PORT || '3000', 10);
     const host = process.env.HOST || '0.0.0.0';

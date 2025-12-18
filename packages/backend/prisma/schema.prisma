@@ -147,7 +147,7 @@ model GenerationQueue {
   user              User     @relation(fields: [userId], references: [id])
   
   // Queue Info
-  position          Int
+  position          Int?
   priority          Int      @default(0)    // Higher = faster
   estimatedWaitTime Int      // in seconds
   

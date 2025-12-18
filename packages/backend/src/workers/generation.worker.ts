@@ -5,6 +5,7 @@ import { Redis } from 'ioredis';
 import axios from 'axios';
 import { TokenPoolService } from '../services/tokenPoolService';
 import { TokenManager } from '../services/tokenManager';
+import { withRetry } from '@super-son1k/shared-utils';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const connection = new Redis(REDIS_URL, {
@@ -39,6 +40,7 @@ export function startGenerationWorker() {
             // 2. Select Optimal Token
             const selection = await tokenPoolService.selectOptimalToken(userTier, userId);
             const token = selection.token;
+            const tokenId = selection.tokenId;
 
             // 3. Update Status to Processing
             await prisma.generationQueue.update({
@@ -70,19 +72,22 @@ export function startGenerationWorker() {
                 instrumental: false
             };
 
-            const response = await axios.post(`${BASE_URL}/generate`, payload, {
-                headers,
-                timeout: 45000
+            const response = await withRetry(async () => {
+                return await axios.post(`${BASE_URL}/generate`, payload, {
+                    headers,
+                    timeout: 45000
+                });
+            }, {
+                maxRetries: MAX_RETRIES,
+                initialDelay: 2000
             });
 
             const responseTime = Date.now() - startTime;
             const success = response.status === 200;
 
             // 5. Update Token Health
-            // We need the TokenPool ID to update health accurately. 
-            // In a real scenario, selectOptimalToken should return the ID too.
-            // For now we assume high health if success.
-            // TODO: Update selectOptimalToken to return ID.
+            // Update token health based on success/failure and response time
+            await tokenPoolService.updateTokenHealth(tokenId, success, responseTime);
 
             if (success && response.data) {
                 const result = response.data;

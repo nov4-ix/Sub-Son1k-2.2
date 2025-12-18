@@ -5,9 +5,12 @@
 
 import { TokenManager } from './tokenManager';
 import { TokenPoolService } from './tokenPoolService';
+import { CreditService } from './creditService';
 import axios, { AxiosInstance } from 'axios';
 import { env } from '../lib/config';
 import { PrismaClient } from '@prisma/client';
+import { Queue } from 'bullmq';
+import { withRetry } from '@super-son1k/shared-utils';
 
 export interface GenerationRequest {
   prompt: string;
@@ -16,6 +19,7 @@ export interface GenerationRequest {
   quality: string;
   userId: string; // Required - all generations must be associated with a user
   generationId?: string;
+  boost?: boolean;
 }
 
 export interface CoverRequest {
@@ -38,9 +42,21 @@ export interface GenerationResult {
 export class MusicGenerationService {
   private axiosInstances: Map<string, AxiosInstance> = new Map();
   private tokenPoolService?: TokenPoolService;
+  private generationQueue: Queue;
+  private prisma: PrismaClient;
 
-  constructor(private tokenManager: TokenManager, tokenPoolService?: TokenPoolService) {
+  constructor(private tokenManager: TokenManager, tokenPoolService: TokenPoolService | undefined, prisma: PrismaClient, private creditService: CreditService) {
     this.tokenPoolService = tokenPoolService;
+    this.prisma = prisma;
+
+    const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+    this.generationQueue = new Queue('music-generation', {
+      connection: {
+        url: REDIS_URL
+      }
+    });
+
+    console.log('🚀 MusicGenerationService: Queue initialized');
   }
 
   /**
@@ -48,111 +64,69 @@ export class MusicGenerationService {
    */
   async generateMusic(request: GenerationRequest): Promise<GenerationResult> {
     try {
-      // Validate userId is provided (required for all generations)
       if (!request.userId) {
-        return {
-          status: 'failed',
-          error: 'userId is required for all generations'
-        };
+        return { status: 'failed', error: 'userId is required' };
       }
 
-      let token: string | undefined;
-      let tokenId: string | undefined;
+      // 0. Gamification: Check & Spend Credits
+      let priority = 0;
+      if (request.userId !== 'anonymous') {
+        const creditCost = 5; // Standard cost
+        const canSpend = await this.creditService.spendCredits(request.userId, creditCost, 'generation');
+        if (!canSpend) {
+          return { status: 'failed', error: 'Insufficient credits (Required: 5)' };
+        }
 
-      // Try to get token from TokenPoolService first (Phase 1 Hybrid Architecture)
-      if (this.tokenPoolService) {
-        try {
-          // Simply treating all as 'free' for now until Tier integration is robust
-          // In future, fetch user tier from DB
-          const result = await this.tokenPoolService.selectOptimalToken('enterprise', request.userId);
-          token = result.token;
-          tokenId = result.tokenId;
-          console.log(`[MusicGenerationService] Using token from Pool: ${tokenId} (Tier: ${result.tier})`);
-        } catch (err: any) {
-          console.warn('[MusicGenerationService] TokenPool selection failed, falling back to legacy TokenManager:', err.message);
+        // Boost Check
+        if (request.boost) {
+          const durationMinutes = Math.ceil(request.duration / 60) || 1;
+          const userCredits = await this.creditService.getUserCredits(request.userId);
+          if (userCredits.boostMinutes >= durationMinutes) {
+            await this.creditService.consumeBoost(request.userId, durationMinutes);
+            priority = 10;
+            console.log(`[MusicGenerationService] Boost activated for user ${request.userId}`);
+          }
         }
       }
 
-      // Fallback to legacy TokenManager if TokenPool unavailable or failed
-      if (!token) {
-        const tokenData = await this.tokenManager.getHealthyToken(request.userId);
-        if (tokenData) {
-          token = tokenData.token;
-          tokenId = tokenData.tokenId;
-          console.log('[MusicGenerationService] Using token from Legacy TokenManager');
+      console.log(`[MusicGenerationService] Enqueuing generation for user ${request.userId}`);
+
+      // 1. Create DB Record
+      const queueItem = await this.prisma.generationQueue.create({
+        data: {
+          userId: request.userId,
+          prompt: request.prompt,
+          type: 'song',
+          parameters: {
+            style: request.style,
+            duration: request.duration,
+            quality: request.quality
+          },
+          status: 'pending',
+          position: 0,
+          estimatedWaitTime: priority > 0 ? 30 : 120, // Faster if boosted
+          priority: priority
         }
-      }
-
-      // If still no token, fail
-      if (!token || !tokenId) {
-        console.error('[MusicGenerationService] No tokens available from any source.');
-        return {
-          status: 'failed',
-          error: 'No available tokens'
-        };
-      }
-
-      // Create axios instance for this request
-      const axiosInstance = this.createAxiosInstance(token);
-
-      // Prepare generation request (formato correcto para ai.imgkits.com)
-      const generationData = {
-        prompt: request.prompt,
-        lyrics: '',
-        title: '',
-        style: request.style,
-        customMode: false,
-        instrumental: false
-      };
-
-      // Make request to AI generation API
-      const response = await axiosInstance.post('/generate', generationData, {
-        timeout: 30000
       });
 
-      if (response.status === 200 && response.data) {
-        // API devuelve taskId o id
-        const generationTaskId = response.data.taskId || response.data.id || response.data.task_id;
+      // 2. Add to BullMQ
+      await this.generationQueue.add('generate-music', {
+        userId: request.userId,
+        prompt: request.prompt,
+        style: request.style,
+        duration: request.duration,
+        quality: request.quality,
+        queueId: queueItem.id,
+        priority: priority
+      }, { priority: priority }); // BullMQ job priority
 
-        if (!generationTaskId) {
-          return {
-            status: 'failed',
-            error: 'No taskId in API response'
-          };
-        }
+      console.log(`[MusicGenerationService] Enqueued job: ${queueItem.id} (Priority: ${priority})`);
 
-        // Update token usage (Try Pool first, then fallback to Manager - though Manager expects its own IDs)
-        // Since we are transitioning, we will try to update health in Pool if it came from Pool
-        if (this.tokenPoolService) {
-          const responseTime = response.data.responseTime || 0; // Or calculate it ourselves
-          // Since we didn't measure exact time here, using 0 or small placeholder
-          // Real implementation should wrap axios call with timer
-          await this.tokenPoolService.updateTokenHealth(tokenId, true, 1000);
-        } else {
-          await this.tokenManager.updateTokenUsage(tokenId, {
-            endpoint: '/generate',
-            method: 'POST',
-            statusCode: response.status,
-            responseTime: response.data.responseTime || 0,
-            timestamp: new Date()
-          });
-        }
-
-        return {
-          status: 'pending',
-          generationTaskId,
-          estimatedTime: this.estimateGenerationTime(request.duration, request.quality)
-        };
-      } else {
-        // Report failure
-        if (this.tokenPoolService) {
-          await this.tokenPoolService.updateTokenHealth(tokenId, false, 5000);
-        }
-        return {
-          status: 'failed',
-          error: 'Invalid response from generation API'
-        };
-      }
+      return {
+        status: 'pending',
+        generationTaskId: queueItem.id, // Return Queue ID, not Suno ID
+        estimatedTime: priority > 0 ? 30 : 120
+      };
 
     } catch (error) {
       console.error('Music generation error:', error);
@@ -169,6 +143,7 @@ export class MusicGenerationService {
   async generateCover(request: CoverRequest): Promise<GenerationResult> {
     try {
       // Validate userId
+      // Validate userId
       if (!request.userId) {
         return {
           status: 'failed',
@@ -176,14 +151,40 @@ export class MusicGenerationService {
         };
       }
 
-      // Get a healthy token
-      const tokenData = await this.tokenManager.getHealthyToken(request.userId);
+      // 0. Gamification: Check & Spend Credits for Cover
+      if (request.userId !== 'anonymous') {
+        const creditCost = 10; // Covers are more expensive? Or same? Let's say 10.
+        const canSpend = await this.creditService.spendCredits(request.userId, creditCost, 'cover');
+        if (!canSpend) {
+          return { status: 'failed', error: 'Insufficient credits (Required: 10)' };
+        }
+      }
 
-      if (!tokenData) {
-        return {
-          status: 'failed',
-          error: 'No available tokens'
-        };
+      // Get Token (Unified Strategy)
+      let tokenStr: string;
+      let tokenId: string;
+
+      try {
+        if (this.tokenPoolService) {
+          // Get User Tier
+          let tier = 'free';
+          if (request.userId && request.userId !== 'anonymous') {
+            const userTier = await this.prisma.userTier.findUnique({ where: { userId: request.userId } });
+            if (userTier) tier = userTier.tier.toLowerCase();
+          }
+
+          const selection = await this.tokenPoolService.selectOptimalToken(tier as any, request.userId);
+          tokenStr = selection.token;
+          tokenId = selection.tokenId;
+        } else {
+          // Fallback to basic manager
+          const tokenData = await this.tokenManager.getHealthyToken(request.userId);
+          if (!tokenData) throw new Error('No available tokens');
+          tokenStr = tokenData.token;
+          tokenId = tokenData.tokenId;
+        }
+      } catch (err) {
+        return { status: 'failed', error: 'No available generation resources. Please try again later.' };
       }
 
       // Use the specific cover API URL if different, or default to the main one
@@ -199,7 +200,7 @@ export class MusicGenerationService {
       }, {
         headers: {
           'Content-Type': 'application/json',
-          'authorization': `Bearer ${tokenData.token}`,
+          'authorization': `Bearer ${tokenStr}`,
           'channel': 'node-api',
           'origin': 'https://www.livepolls.app',
           'referer': 'https://www.livepolls.app/'
@@ -219,7 +220,7 @@ export class MusicGenerationService {
         }
 
         // Update token usage
-        await this.tokenManager.updateTokenUsage(tokenData.tokenId, {
+        await this.tokenManager.updateTokenUsage(tokenId, {
           endpoint: '/cover',
           method: 'POST',
           statusCode: response.status,
@@ -253,35 +254,50 @@ export class MusicGenerationService {
    */
   async checkGenerationStatus(generationTaskId: string): Promise<GenerationResult> {
     try {
-      // Get a healthy token
-      const tokenData = await this.tokenManager.getHealthyToken();
+      // Get Token (Unified Strategy)
+      let tokenStr: string;
+      let tokenId: string;
 
-      if (!tokenData) {
-        return {
-          status: 'failed',
-          error: 'No available tokens'
-        };
+      try {
+        if (this.tokenPoolService) {
+          // For status check, tier doesn't matter much, defaulting to free/system
+          const selection = await this.tokenPoolService.selectOptimalToken('free', 'system-poller');
+          tokenStr = selection.token;
+          tokenId = selection.tokenId;
+        } else {
+          // Fallback to basic manager
+          const tokenData = await this.tokenManager.getHealthyToken();
+          if (!tokenData) throw new Error('No available tokens');
+          tokenStr = tokenData.token;
+          tokenId = tokenData.tokenId;
+        }
+      } catch (err) {
+        return { status: 'failed', error: 'No available resources for status check.' };
       }
 
-      // Polling endpoint para verificar estado
       const pollingUrl = env.GENERATION_POLLING_URL || env.NEURAL_ENGINE_POLLING_URL || 'https://usa.imgkits.com/node-api/suno';
 
-      const response = await axios.get(`${pollingUrl}/get_mj_status/${generationTaskId}`, {
-        timeout: 10000,
-        headers: {
-          'authorization': `Bearer ${tokenData.token}`,
-          'Content-Type': 'application/json',
-          'channel': 'node-api',
-          'origin': 'https://www.livepolls.app',
-          'referer': 'https://www.livepolls.app/'
-        }
+      const response = await withRetry(async () => {
+        return await axios.get(`${pollingUrl}/get_mj_status/${generationTaskId}`, {
+          timeout: 10000,
+          headers: {
+            'authorization': `Bearer ${tokenStr}`,
+            'Content-Type': 'application/json',
+            'channel': 'node-api',
+            'origin': 'https://www.livepolls.app',
+            'referer': 'https://www.livepolls.app/'
+          }
+        });
+      }, {
+        maxRetries: 3,
+        initialDelay: 1000
       });
 
       if (response.status === 200 && response.data) {
         const data = response.data;
 
         // Update token usage
-        await this.tokenManager.updateTokenUsage(tokenData.tokenId, {
+        await this.tokenManager.updateTokenUsage(tokenId, {
           endpoint: `/get_mj_status/${generationTaskId}`,
           method: 'GET',
           statusCode: response.status,
@@ -446,35 +462,36 @@ export class MusicGenerationService {
    * Get the status of a generation task from Suno API
    */
   public async getGenerationStatus(taskId: string): Promise<any> {
-    let tokenData: { tokenId: string; token: string } | null = null;
+    // 1. Check DB first
     try {
-      tokenData = await this.tokenManager.getHealthyToken('status-check');
-      if (!tokenData) throw new Error('No token for status check');
-
-      const axiosInstance = this.createAxiosInstance(tokenData.token);
-      const response = await axiosInstance.get(`/status/${taskId}`, { timeout: 15000 });
-
-      if (response.status !== 200) {
-        throw new Error(`Unexpected status ${response.status}`);
+      const queueItem = await this.prisma.generationQueue.findUnique({ where: { id: taskId } });
+      if (queueItem) {
+        if (queueItem.status === 'completed' && queueItem.result) {
+          const result: any = queueItem.result;
+          // Normalize result
+          return {
+            success: true,
+            status: 'completed',
+            audioUrl: result.audio_url || (Array.isArray(result) ? result[0]?.audio_url : null),
+            title: result.title,
+            metadata: result
+          };
+        } else if (queueItem.status === 'failed') {
+          return { success: false, status: 'failed', error: queueItem.error };
+        } else {
+          return { success: true, status: queueItem.status }; // pending, processing
+        }
       }
-
-      return {
-        status: response.data.status,
-        audioUrl: response.data.audio_url,
-        metadata: response.data.metadata || {},
-      };
-    } catch (err: any) {
-      // Update token usage on error
-      this.tokenManager.updateTokenUsage(tokenData?.tokenId || '', {
-        endpoint: `/status/${taskId}`,
-        method: 'GET',
-        statusCode: err.response?.status || 500,
-        responseTime: err.response?.duration || 0,
-        timestamp: new Date(),
-        error: err.message,
-      });
-      throw err;
+    } catch (dbError) {
+      console.warn('DB check failed in getGenerationStatus, falling back to Suno check', dbError);
     }
+
+    // 2. Fallback to direct Suno check
+    const result = await this.checkGenerationStatus(taskId);
+    if (result.status === 'failed') {
+      throw new Error(result.error || 'Status check failed');
+    }
+    return result;
   }
 
 }
