@@ -226,21 +226,75 @@ export class TokenPoolService {
   }
 
   // ========================================
+  // Admin / Stats Methods
+  // ========================================
+
+  async getPoolHealth(): Promise<any> {
+    const total = await this.prisma.tokenPool.count();
+    const active = await this.prisma.tokenPool.count({ where: { isActive: true } });
+    const healthy = await this.prisma.tokenPool.count({ where: { isActive: true, healthScore: { gte: 70 } } });
+
+    // Calculate queue wait time (mock or from redis)
+    const queueLength = await this.getQueueLength();
+    const avgWaitTime = queueLength * 30; // 30s estimate per item
+
+    return {
+      status: active > 0 ? 'operational' : 'degraded',
+      health_score: total > 0 ? Math.round((healthy / total) * 100) : 0,
+      active_tokens: active,
+      total_tokens: total,
+      queue_depth: queueLength,
+      avg_wait_time: avgWaitTime,
+      last_updated: new Date()
+    };
+  }
+
+  async getPoolStatistics(): Promise<any> {
+    const total = await this.prisma.tokenPool.count();
+    const active = await this.prisma.tokenPool.count({ where: { isActive: true } });
+
+    // Group by tier
+    const tiers = await this.prisma.tokenPool.groupBy({
+      by: ['tier'],
+      _count: {
+        id: true
+      }
+    });
+
+    return {
+      overview: {
+        total_tokens: total,
+        active_tokens: active,
+        utilization_rate: 0 // Placeholder
+      },
+      tiers: tiers.map(t => ({ name: t.tier, count: t._count.id })),
+      performance: {
+        success_rate: 98.5, // Mock
+        avg_generation_time: 45 // Mock
+      }
+    };
+  }
+
+  // ========================================
   // Queue Management (Basic)
   // ========================================
 
-  async getQueueLength(tier: string): Promise<number> {
-    const cacheKey = `queue:length:${tier}`;
+  async getQueueLength(tier?: string): Promise<number> {
+    const cacheKey = tier ? `queue:length:${tier}` : 'queue:length:global';
     if (this.redis) {
       const cached = await this.redis.get(cacheKey);
       if (cached) return parseInt(cached);
     }
 
+    const where: any = {
+      status: { in: ['queued', 'processing'] }
+    };
+
+    // If we had tier filtering in DB relations, we'd add it here
+    // For now returning global or mock filtering
+
     const length = await this.prisma.generationQueue.count({
-      where: {
-        status: { in: ['queued', 'processing'] },
-        // user: { tier } // Need to join relations properly, skipping simplified for now
-      }
+      where
     });
 
     if (this.redis) {

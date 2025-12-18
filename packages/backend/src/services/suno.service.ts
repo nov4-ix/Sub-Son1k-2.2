@@ -123,15 +123,16 @@ export class SunoService {
             throw new Error(`Suno API error (${response.status}): ${errorText}`);
         }
 
-        const data = await response.json();
-        return data.clips;
+        const data: any = await response.json();
+        const clips: SunoClip[] = data.clips;
+        return clips;
     }
 
     /**
      * Obtener clip por ID
      */
     async getClip(clipId: string, token: SunoToken): Promise<SunoClip> {
-        const response = await fetch(`${this.BASE_URL}/api/feed/?ids=${clipId}`, {
+        const response: Response = await fetch(`${this.BASE_URL}/api/feed/?ids=${clipId}`, {
             headers: {
                 'Cookie': token.cookie,
                 'Authorization': `Bearer ${token.jwt}`,
@@ -163,7 +164,7 @@ export class SunoService {
             throw new Error(`Failed to fetch clips: ${response.statusText}`);
         }
 
-        return await response.json();
+        return await response.json() as any;
     }
 
     /**
@@ -187,7 +188,7 @@ export class SunoService {
             throw new Error(`Failed to fetch credits: ${response.statusText}`);
         }
 
-        const data = await response.json();
+        const data: any = await response.json();
         return {
             remaining: data.total_credits_left,
             limit: data.monthly_limit,
@@ -218,7 +219,7 @@ export class SunoService {
             throw new Error(`Lyrics generation failed: ${response.statusText}`);
         }
 
-        return await response.json();
+        return await response.json() as any;
     }
 
     /**

@@ -91,9 +91,9 @@ async function handleEngineInit(userId: string, version: string) {
     try {
         await prisma.analyticsEvent.create({
             data: {
-                eventType: 'engine_initialized',
+                event: 'engine_initialized',
                 userId: userId || 'anonymous',
-                metadata: { version }
+                properties: JSON.stringify({ version })
             }
         });
     } catch (error) {
@@ -144,12 +144,7 @@ async function handleTokenCapture(encryptedData: string, userId: string, source:
                 dailyLimit: 20,
                 currentDailyUsage: 0,
                 resetAt: getNextMidnight(),
-                metadata: {
-                    capturedFrom: tokenData.domain,
-                    capturedAt: new Date().toISOString(),
-                    userId: userId || 'anonymous',
-                    version: '2.2.0'
-                }
+                // metadata field removed as it doesn't exist in schema
             }
         });
 
