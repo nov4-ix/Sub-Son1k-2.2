@@ -74,7 +74,7 @@ export class SunoService {
             throw new Error(`Suno API error (${response.status}): ${errorText}`);
         }
 
-        const data = await response.json();
+        const data: any = await response.json();
 
         // Si wait_audio es true, esperar a que se complete
         if (params.wait_audio) {
@@ -144,7 +144,7 @@ export class SunoService {
             throw new Error(`Failed to fetch clip: ${response.statusText}`);
         }
 
-        const data = await response.json();
+        const data: any = await response.json();
         return data[0];
     }
 

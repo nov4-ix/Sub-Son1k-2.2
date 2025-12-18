@@ -131,7 +131,7 @@ export class TokenPoolManager extends EventEmitter {
                 throw new Error(`Failed to get session: ${sessionResponse.status} ${sessionResponse.statusText}`);
             }
 
-            const sessionData = await sessionResponse.json();
+            const sessionData = await sessionResponse.json() as any;
             const jwt = sessionData?.response?.last_active_session_id || sessionData?.last_active_session_id;
 
             if (!jwt) {
@@ -152,7 +152,7 @@ export class TokenPoolManager extends EventEmitter {
                 throw new Error(`Failed to get credits: ${creditsResponse.status}`);
             }
 
-            const creditsData = await creditsResponse.json();
+            const creditsData = await creditsResponse.json() as any;
 
             // 3. Extraer session ID de la cookie
             const sessionMatch = cookie.match(/__session=([^;]+)/);
@@ -287,7 +287,7 @@ export class TokenPoolManager extends EventEmitter {
                 throw new Error(`Keep-alive failed: ${response.status}`);
             }
 
-            const data = await response.json();
+            const data = await response.json() as any;
             token.credits = data.total_credits_left || token.credits;
             token.lastValidated = new Date();
             token.failureCount = 0; // Reset failures on success
@@ -338,7 +338,7 @@ export class TokenPoolManager extends EventEmitter {
                 throw new Error(`JWT refresh failed: ${response.status}`);
             }
 
-            const data = await response.json();
+            const data = await response.json() as any;
             const newJWT = data?.response?.last_active_session_id || data?.last_active_session_id;
 
             if (newJWT && newJWT !== token.jwt) {
