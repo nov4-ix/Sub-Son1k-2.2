@@ -698,6 +698,80 @@ export const TheGeneratorExpress = () => {
                 </div>
             </footer>
 
+            {/* Floating Persistent Player */}
+            {trackUrl && (
+                <div className="fixed bottom-0 left-0 right-0 bg-[#0B121C]/95 backdrop-blur-xl border-t border-white/10 p-4 z-50 animate-in slide-in-from-bottom duration-300">
+                    <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                            <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-[#B858FE] to-[#047AF6] flex items-center justify-center shrink-0 shadow-lg shadow-[#B858FE]/20 animate-pulse">
+                                <Music className="w-6 h-6 text-white" />
+                            </div>
+                            <div className="min-w-0">
+                                <h4 className="text-white font-medium truncate text-base">Tu Canción Generada</h4>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[#40FDAE] text-xs font-medium px-1.5 py-0.5 rounded bg-[#40FDAE]/10">NUEVA</span>
+                                    <p className="text-white/40 text-xs truncate">Generado por Neural Engine</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-6">
+                            {/* Time */}
+                            <div className="hidden md:block text-xs text-white/40 font-mono">
+                                {Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')} / {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
+                            </div>
+
+                            {/* Controls */}
+                            <div className="flex items-center gap-4">
+                                <button className="text-white/40 hover:text-white transition-colors hidden sm:block">
+                                    <SkipBack className="w-5 h-5" />
+                                </button>
+
+                                <button
+                                    onClick={togglePlay}
+                                    className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-200 transition-transform active:scale-95 shadow-white/10 shadow-xl"
+                                >
+                                    {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
+                                </button>
+
+                                <button className="text-white/40 hover:text-white transition-colors hidden sm:block">
+                                    <SkipForward className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-4 border-l border-white/10 pl-6 hidden sm:flex">
+                                <a
+                                    href={trackUrl}
+                                    download="son1k-track.mp3"
+                                    className="p-2 text-white/40 hover:text-white hover:bg-white/5 rounded-full transition-colors"
+                                    title="Descargar"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div
+                        className="absolute top-0 left-0 h-1 bg-gradient-to-r from-[#B858FE] to-[#047AF6] transition-all duration-100 ease-linear cursor-pointer group"
+                        style={{ width: `${(currentTime / duration) * 100 || 0}%` }}
+                        onClick={(e) => {
+                            const rect = e.currentTarget.parentElement?.getBoundingClientRect();
+                            if (rect && audioRef.current) {
+                                const x = e.clientX - rect.left;
+                                const percent = x / rect.width;
+                                audioRef.current.currentTime = percent * duration;
+                            }
+                        }}
+                    >
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-white/5 -z-10" />
+                </div>
+            )}
+
             <Toaster position="bottom-center" toastOptions={{
                 style: {
                     background: '#1C232E',
